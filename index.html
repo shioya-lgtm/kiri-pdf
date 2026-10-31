@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KiriPDF — Local PDF Atelier</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF-Lib (PDF vector manipulation and assembly) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <!-- PDF.js (High performance vector-to-canvas rendering) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDF Encryption Engine (AES-256 / RC4 Standards Compliant) -->
+  <script src="https://cdn.jsdelivr.net/npm/@pdfsmaller/pdf-encrypt/dist/pdf-encrypt.umd.js"></script>
+  <!-- JSZip (In-memory zip archiving) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .font-mono {
+      font-family: var(--font-mono);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .paper-card {
+      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    }
+    .paper-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 18px -4px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+    }
+    .paper-card.is-selected {
+      border-color: #0f172a !important;
+      box-shadow: 0 0 0 2px #0f172a, 0 10px 20px -4px rgba(15, 23, 42, 0.14);
+    }
+
+    .atelier-canvas {
+      background-color: #f8fafc;
+      background-image: radial-gradient(#e2e8f0 0.85px, transparent 0.85px);
+      background-size: 16px 16px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col select-none overflow-hidden text-sm">
+
+  <header class="h-13 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between flex-shrink-0 z-30 shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center text-white shadow-xs border border-slate-700/40 relative overflow-hidden group">
+          <svg class="w-4.5 h-4.5 transition-transform duration-300 group-hover:scale-105" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 4.5C5 3.67 5.67 3 6.5 3H14L19 8V18.5C19 19.33 18.33 20 17.5 20H13" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+            <path d="M5 8.5C5 7.67 5.67 7 6.5 7H13.5C14.33 7 15 7.67 15 8.5V19.5C15 20.33 14.33 21 13.5 21H6.5C5.67 21 5 20.33 5 19.5V8.5Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M3 17.5L16 4.5" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+            <path d="M14.5 3L17.5 6" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="9.5" cy="11" r="1.2" fill="white"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5 leading-none">
+            <span class="font-bold tracking-tight text-slate-900 text-sm">KiriPDF</span>
+            <span class="text-[10px] text-slate-400 font-mono tracking-wider">ATELIER</span>
+          </div>
+          <span class="text-[10px] text-slate-400 leading-tight block">Local PDF Workshop</span>
+        </div>
+      </div>
+
+      <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>完全無料・API通信ゼロ（端末内完結）</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <label for="fileInput" class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white active:scale-[0.98] transition-all shadow-xs">
+        <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+        <span>PDFを追加</span>
+      </label>
+      <input type="file" id="fileInput" multiple accept="application/pdf" class="hidden">
+
+      <button id="clearAllBtn" onclick="clearAllFiles()" class="hidden items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="全ファイルをクリア">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">全クリア</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 flex flex-col overflow-hidden relative">
+    <div id="emptyDropzone" class="flex-1 flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+      <div class="max-w-md w-full border border-dashed border-slate-300 hover:border-slate-800 bg-white hover:bg-slate-50/70 rounded-2xl p-10 flex flex-col items-center justify-center cursor-pointer shadow-xs hover:shadow-md transition-all group duration-200"
+           onclick="document.getElementById('fileInput').click()">
+        <div class="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 group-hover:text-slate-900 flex items-center justify-center group-hover:scale-105 transition-all mb-4">
+          <i data-lucide="file-up" class="w-7 h-7 stroke-[1.8]"></i>
+        </div>
+        <h2 class="text-sm font-bold text-slate-900 mb-1 tracking-tight">PDFファイルをドラッグ＆ドロップ</h2>
+        <p class="text-xs text-slate-400 mb-4 leading-relaxed">複数ファイル対応・ページ抽出・分割・結合・パスワード保護・用紙統一</p>
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3.5 py-1.5 rounded-lg group-hover:bg-slate-200 transition-colors">
+          <i data-lucide="folder-open" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span>ファイルを選択する</span>
+        </span>
+      </div>
+    </div>
+
+    <div id="activeWorkspace" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden">
+      <aside class="w-full md:w-60 lg:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col flex-shrink-0 z-20">
+        <div class="h-10 px-3.5 border-b border-slate-100 hidden md:flex items-center justify-between text-slate-400 text-xs font-semibold">
+          <span class="tracking-tight text-[11px] uppercase text-slate-400 font-bold">読み込みファイル (<span id="fileCountBadge">0</span>)</span>
+          <button onclick="document.getElementById('fileInput').click()" class="text-[11px] text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1 transition-colors">
+            <i data-lucide="plus" class="w-3 h-3"></i>追加
+          </button>
+        </div>
+
+        <div id="fileTabsContainer" class="flex-1 overflow-x-auto md:overflow-y-auto p-2 space-x-1.5 md:space-x-0 md:space-y-1 flex md:flex-col custom-scrollbar"></div>
+
+        <div class="p-3 border-t border-slate-100 hidden md:block bg-slate-50/60">
+          <div class="flex items-center justify-between text-[11px] font-medium text-slate-500 mb-1.5">
+            <span>抽出対象:</span>
+            <span class="font-mono font-semibold text-slate-800" id="sidebarTotalSelected">0 / 0</span>
+          </div>
+          <div class="w-full bg-slate-200/80 rounded-full h-1 overflow-hidden">
+            <div id="sidebarProgressBar" class="bg-slate-900 h-1 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="flex-1 flex flex-col overflow-hidden min-w-0 atelier-canvas">
+        <div class="h-12 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between flex-shrink-0 text-xs gap-3">
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button onclick="selectCurrentScope(true)" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">全選択</button>
+            <button onclick="selectCurrentScope(false)" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">解除</button>
+            <div class="w-[1px] h-3 bg-slate-300 mx-0.5"></div>
+            <button onclick="selectOddEvenScope('odd')" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">奇数</button>
+            <button onclick="selectOddEvenScope('even')" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">偶数</button>
+          </div>
+
+          <div class="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+            <div class="hidden lg:flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
+              <i data-lucide="minus" class="w-3 h-3 text-slate-400"></i>
+              <input type="range" id="zoomSlider" min="2" max="6" value="4" class="w-14 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" title="プレビューサイズ調整">
+              <i data-lucide="plus" class="w-3 h-3 text-slate-400"></i>
+            </div>
+
+            <button onclick="splitAllPagesToZip()" title="全ページを1枚ずつのPDFに分割してZIP保存"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium rounded-lg shadow-2xs active:scale-[0.98] transition-all">
+              <i data-lucide="archive" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span class="hidden sm:inline">全分割</span> (ZIP)
+            </button>
+
+            <button id="mergeAllFilesBtn" onclick="mergeAllFiles()" style="display: none;"
+                    title="読み込んでいる全PDFを順番通りに1つに結合"
+                    class="items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium rounded-lg shadow-2xs active:scale-[0.98] transition-all">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span class="hidden sm:inline">全PDFを結合</span>
+            </button>
+
+            <button id="exportSelectedBtn" onclick="openExportSettingsModal()"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-2xs active:scale-[0.98] transition-all">
+              <i data-lucide="download" class="w-3.5 h-3.5 stroke-[2.2]"></i>
+              <span>選択抽出</span>
+              <span id="selectedCountBadge" class="bg-white/20 text-white px-1.5 py-0.2 rounded-full font-mono text-[10px] ml-0.5">0</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="pagesContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="quickLookModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl flex flex-col max-w-4xl w-full h-[90vh] overflow-hidden border border-slate-200">
+      <div class="h-12 px-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50/70">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="qlTitle" class="font-semibold text-xs text-slate-800 truncate max-w-xs sm:max-w-md">Document Preview</span>
+          <span id="qlPageBadge" class="text-[10px] font-mono bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">P. 1</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="qlSelectToggleBtn" onclick="toggleQuickLookSelection()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span id="qlSelectToggleText">選択する</span>
+          </button>
+          <div class="w-[1px] h-4 bg-slate-200 mx-1"></div>
+          <button onclick="closeQuickLook()" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors" title="閉じる (Esc)">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 bg-slate-100 overflow-auto p-4 flex items-center justify-center relative custom-scrollbar">
+        <div id="qlLoading" class="absolute inset-0 flex items-center justify-center bg-slate-100/80 z-10 hidden">
+          <div class="flex items-center gap-2 text-xs text-slate-600 font-medium">
+            <div class="w-4 h-4 border-2 border-slate-800 border-t-transparent rounded-full animate-spin"></div>
+            <span>高解像度プレビュー生成中...</span>
+          </div>
+        </div>
+        <canvas id="qlCanvas" class="shadow-md rounded-md max-w-full max-h-full object-contain bg-white"></canvas>
+      </div>
+
+      <div class="h-11 px-4 border-t border-slate-200 flex items-center justify-between text-xs bg-white flex-shrink-0">
+        <div class="text-slate-400 text-[11px] hidden sm:flex items-center gap-3">
+          <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">→</kbd> ページ移動</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">Space</kbd> 選択切替</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">Esc</kbd> 閉じる</span>
+        </div>
+
+        <div class="flex items-center gap-1.5 ml-auto">
+          <button onclick="navigateQuickLook(-1)" class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+          </button>
+          <span id="qlCounter" class="font-mono text-slate-500 text-[11px] px-2">1 / 1</span>
+          <button onclick="navigateQuickLook(1)" class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 flex flex-col animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div>
+          <h3 class="font-bold text-slate-900 text-sm tracking-tight">出力オプション設定</h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">抽出したPDFに適用するセキュリティと装飾</p>
+        </div>
+        <button onclick="closeExportSettingsModal()" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">出力ファイル名</label>
+          <div class="relative">
+            <input type="text" id="exportFileName" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-xs font-mono pr-12 transition-all">
+            <span class="absolute right-3 top-1.5 text-slate-400 font-mono text-[11px]">.pdf</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label for="enablePassword" class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="enablePassword" onchange="togglePasswordInput()" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
+              <span class="font-semibold text-slate-800">閲覧パスワードの付与 (AES-256暗号化)</span>
+            </label>
+            <span class="text-[10px] text-emerald-600 font-mono font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">STANDARD ENCRYPTION</span>
+          </div>
+
+          <div id="passwordSection" class="hidden pt-2 border-t border-slate-200/60 space-y-2">
+            <div class="flex items-center gap-1.5">
+              <div class="relative flex-1">
+                <input type="password" id="pdfPassword" placeholder="半角英数記号 (8文字以上推奨)"
+                       class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs font-mono pr-8">
+                <button type="button" onclick="togglePasswordVisibility()" class="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600">
+                  <i id="pwdEyeIcon" data-lucide="eye" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" onclick="generateAutoPassword()" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-medium text-slate-700 text-[11px] flex items-center gap-1 shadow-2xs transition-all" title="強力なパスワードを自動生成">
+                <i data-lucide="dices" class="w-3.5 h-3.5 text-slate-500"></i>
+                <span>自動生成</span>
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-500 leading-tight">※Acrobatや各種ブラウザ・スマートフォンで開く際にパスワード認証が要求されます。出力完了時にパスワードが自動でクリップボードにコピーされます。</p>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="wipeMetadata" checked class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
+            <div>
+              <span class="text-slate-700 font-medium">メタデータを完全消去</span>
+              <span class="text-[10px] text-slate-400 block">作成者・PC名・元アプリ履歴を削除して流出防止</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <label for="enableWatermark" class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="enableWatermark" onchange="toggleWatermarkInput()" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
+              <span class="font-semibold text-slate-800">透かし文字（スタンプ）</span>
+            </label>
+          </div>
+
+          <div id="watermarkSection" class="hidden pt-2 border-t border-slate-200/60 space-y-2">
+            <input type="text" id="watermarkText" value="校外秘 / CONFIDENTIAL" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button type="button" onclick="setWatermarkPreset('校外秘 / CONFIDENTIAL')" class="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600 hover:bg-slate-50">校外秘</button>
+              <button type="button" onclick="setWatermarkPreset('関係者限り / INTERNAL ONLY')" class="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600 hover:bg-slate-50">関係者限り</button>
+              <button type="button" onclick="setWatermarkPreset('複製禁止 / DO NOT COPY')" class="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600 hover:bg-slate-50">複製禁止</button>
+              <button type="button" onclick="setWatermarkPreset('DRAFT / 審査用')" class="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600 hover:bg-slate-50">DRAFT</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <label for="enablePageResize" class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="enablePageResize" onchange="toggleResizeSelect()" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
+              <span class="font-semibold text-slate-800">用紙サイズの統一</span>
+            </label>
+            <span class="text-[10px] text-slate-400 font-mono">自動センタリング</span>
+          </div>
+
+          <div id="resizeSection" class="hidden pt-2 border-t border-slate-200/60 space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-1">規格サイズ</label>
+                <select id="targetPageSize" class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs text-slate-700">
+                  <option value="A4" selected>A4 (210 × 297 mm)</option>
+                  <option value="A3">A3 (297 × 420 mm)</option>
+                  <option value="B5">B5 (182 × 257 mm)</option>
+                  <option value="B4">B4 (257 × 364 mm)</option>
+                  <option value="Letter">Letter (8.5 × 11 in)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-1">用紙の向き（縦横）</label>
+                <select id="targetPageOrientation" class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs text-slate-700">
+                  <option value="portrait" selected>すべて縦向きに統一</option>
+                  <option value="landscape">すべて横向きに統一</option>
+                  <option value="auto">元の向きに合わせる（自動）</option>
+                </select>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">※比率を維持したまま中央配置されます。「すべて縦向き」を選ぶと、横向きのスライドや表も縦向き用紙の中央に綺麗に収まり、印刷・綴じ方向が揃います。</p>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="addPageNumbers" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
+            <div>
+              <span class="text-slate-700 font-medium">通しページ番号（ノンブル）を印字</span>
+              <span class="text-[10px] text-slate-400 block">各ページの下部中央に「1 / N」を自動挿入</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
+        <span class="text-[11px] text-slate-400" id="exportSummaryCount">対象: 0 ページ</span>
+        <div class="flex items-center gap-2">
+          <button onclick="closeExportSettingsModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors">
+            キャンセル
+          </button>
+          <button onclick="executeExportWithSettings()" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs active:scale-[0.98] transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>設定を適用して出力</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="processingOverlay" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 max-w-xs w-full flex flex-col items-center text-center border border-slate-200 animate-in zoom-in-95">
+      <div class="w-10 h-10 border-3 border-slate-900 border-t-transparent rounded-full animate-spin mb-3"></div>
+      <span class="font-bold text-slate-800 text-xs" id="processingTitle">処理中...</span>
+      <span class="text-[11px] text-slate-400 mt-1" id="processingSubtext">しばらくお待ちください</span>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transition-all duration-200 transform translate-y-2">
+    <div class="bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs flex items-center gap-2.5 border border-slate-700/50">
+      <div id="toastIcon" class="text-emerald-400">
+        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+      </div>
+      <span id="toastMsg" class="font-medium">Notification message</span>
+    </div>
+  </div>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const state = {
+      files: [],
+      activeFileId: 'all',
+      zoomLevel: 4,
+      quickLook: { isOpen: false, fileIndex: 0, pageIndex: 0 }
+    };
+
+    let pageObserver = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      setupDragAndDrop();
+      setupKeyboardNav();
+
+      const zoomSlider = document.getElementById('zoomSlider');
+      if (zoomSlider) {
+        zoomSlider.addEventListener('input', (e) => {
+          state.zoomLevel = parseInt(e.target.value);
+          renderPagesGrid();
+        });
+      }
+
+      pageObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const card = entry.target;
+            const fileId = card.dataset.fileId;
+            const pageIdx = parseInt(card.dataset.pageIndex);
+            loadCardThumbnail(card, fileId, pageIdx);
+            pageObserver.unobserve(card);
+          }
+        });
+      }, { rootMargin: '200px' });
+    });
+
+    function setupDragAndDrop() {
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+        window.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+      });
+
+      window.addEventListener('drop', (e) => {
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+        if (files.length > 0) handleFilesSelected(files);
+      });
+
+      document.getElementById('fileInput').addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) handleFilesSelected(files);
+        e.target.value = '';
+      });
+    }
+
+    async function handleFilesSelected(files) {
+      showProcessing('PDFを解析中...', 'サムネイルを生成しています');
+
+      for (const file of files) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const rawBytes = new Uint8Array(arrayBuffer.slice(0));
+          const pdfJsWorkerBytes = new Uint8Array(arrayBuffer.slice(0));
+
+          const pdfDocProxy = await pdfjsLib.getDocument({ data: pdfJsWorkerBytes }).promise;
+          const pageCount = pdfDocProxy.numPages;
+
+          const fileId = 'f_' + Math.random().toString(36).substring(2, 9);
+          const pages = [];
+
+          for (let i = 0; i < pageCount; i++) {
+            pages.push({ index: i, isSelected: false, thumbUrl: null });
+          }
+
+          state.files.push({
+            id: fileId,
+            fileRef: file,
+            name: file.name,
+            size: file.size,
+            pageCount: pageCount,
+            pdfDocProxy: pdfDocProxy,
+            rawBytes: rawBytes,
+            pages: pages
+          });
+
+          state.activeFileId = fileId;
+        } catch (error) {
+          console.error('Error loading PDF:', error);
+          if (error.name === 'PasswordException') {
+            showToast(`"${file.name}" はパスワード保護されています`, true);
+          } else {
+            showToast(`"${file.name}" の読み込みに失敗しました`, true);
+          }
+        }
+      }
+
+      hideProcessing();
+      updateLayoutVisibility();
+      renderSidebarTabs();
+      renderPagesGrid();
+      updateSelectedCounts();
+    }
+
+    function updateLayoutVisibility() {
+      const hasFiles = state.files.length > 0;
+      document.getElementById('emptyDropzone').style.display = hasFiles ? 'none' : 'flex';
+      document.getElementById('activeWorkspace').style.display = hasFiles ? 'flex' : 'none';
+      document.getElementById('clearAllBtn').style.display = hasFiles ? 'inline-flex' : 'none';
+      document.getElementById('fileCountBadge').textContent = state.files.length;
+
+      const mergeBtn = document.getElementById('mergeAllFilesBtn');
+      if (mergeBtn) mergeBtn.style.display = state.files.length >= 2 ? 'inline-flex' : 'none';
+    }
+
+    function clearAllFiles() {
+      state.files = [];
+      state.activeFileId = 'all';
+      updateLayoutVisibility();
+      showToast('すべてのファイルをクリアしました');
+    }
+
+    function renderSidebarTabs() {
+      const container = document.getElementById('fileTabsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (state.files.length > 1) {
+        const allBtn = document.createElement('button');
+        const isAllActive = state.activeFileId === 'all';
+        allBtn.className = `w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
+          isAllActive ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
+        }`;
+        allBtn.onclick = () => {
+          state.activeFileId = 'all';
+          renderSidebarTabs();
+          renderPagesGrid();
+        };
+
+        const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+        const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
+
+        allBtn.innerHTML = `
+          <div class="flex items-center gap-2 truncate">
+            <i data-lucide="layers" class="w-3.5 h-3.5 ${isAllActive ? 'text-white' : 'text-slate-400'}"></i>
+            <span class="truncate font-semibold">全ファイル一覧</span>
+          </div>
+          <span class="font-mono text-[10px] px-1.5 py-0.5 rounded-md ${
+            isAllActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+          }">${totalSelected}/${totalPages}</span>
+        `;
+        container.appendChild(allBtn);
+      }
+
+      state.files.forEach((file) => {
+        const isActive = state.activeFileId === file.id;
+        const selectedCount = file.pages.filter(p => p.isSelected).length;
+
+        const tab = document.createElement('div');
+        tab.className = `group relative rounded-xl transition-all ${
+          isActive ? 'bg-slate-900 text-white shadow-2xs' : 'hover:bg-slate-100 text-slate-700'
+        }`;
+
+        tab.innerHTML = `
+          <div class="px-3 py-2 flex items-center justify-between cursor-pointer" onclick="setActiveFile('${file.id}')">
+            <div class="flex items-center gap-2 truncate min-w-0 pr-1">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}"></i>
+              <span class="truncate text-xs font-medium" title="${file.name}">${file.name}</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <span class="font-mono text-[10px] px-1.5 py-0.5 rounded-md ${
+                isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }">${selectedCount}/${file.pageCount}</span>
+              <button onclick="event.stopPropagation(); removeFile('${file.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 rounded transition-opacity" title="ファイルを削除">
+                <i data-lucide="x" class="w-3 h-3"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(tab);
+      });
+
+      lucide.createIcons({ root: container });
+    }
+
+    function setActiveFile(fileId) {
+      state.activeFileId = fileId;
+      renderSidebarTabs();
+      renderPagesGrid();
+    }
+
+    function removeFile(fileId) {
+      state.files = state.files.filter(f => f.id !== fileId);
+      if (state.activeFileId === fileId) {
+        state.activeFileId = state.files.length > 0 ? state.files[0].id : 'all';
+      }
+      updateLayoutVisibility();
+      renderSidebarTabs();
+      renderPagesGrid();
+      updateSelectedCounts();
+    }
+
+    function renderPagesGrid() {
+      const container = document.getElementById('pagesContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const targetFiles = state.activeFileId === 'all'
+        ? state.files
+        : state.files.filter(f => f.id === state.activeFileId);
+
+      if (targetFiles.length === 0) return;
+
+      const colMap = {
+        2: 'grid-cols-1 sm:grid-cols-2',
+        3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
+        4: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5',
+        5: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6',
+        6: 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7'
+      };
+      const gridClass = colMap[state.zoomLevel] || colMap[4];
+
+      targetFiles.forEach((file) => {
+        if (state.activeFileId === 'all' && state.files.length > 1) {
+          const secHeader = document.createElement('div');
+          secHeader.className = 'flex items-center justify-between mt-2 mb-3 pt-2 border-t border-slate-200/60 first:border-0 first:mt-0';
+          secHeader.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-xs text-slate-800">${file.name}</span>
+              <span class="text-[10px] text-slate-400 font-mono">(${file.pageCount} pages)</span>
+            </div>
+            <button onclick="selectFilePages('${file.id}', true)" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">このファイルを全選択</button>
+          `;
+          container.appendChild(secHeader);
+        }
+
+        const grid = document.createElement('div');
+        grid.className = `grid ${gridClass} gap-3 sm:gap-4 mb-6`;
+
+        file.pages.forEach((page) => {
+          const card = document.createElement('div');
+          card.className = `paper-card relative bg-white rounded-xl border border-slate-200 cursor-pointer overflow-hidden flex flex-col group ${
+            page.isSelected ? 'is-selected ring-2 ring-slate-900' : 'opacity-85 hover:opacity-100'
+          }`;
+          card.dataset.fileId = file.id;
+          card.dataset.pageIndex = page.index;
+
+          card.onclick = () => togglePageSelection(file.id, page.index);
+
+          card.innerHTML = `
+            <div class="w-full aspect-[1/1.414] bg-slate-100 flex items-center justify-center overflow-hidden relative">
+              <div class="thumb-loader absolute inset-0 flex items-center justify-center text-slate-400">
+                <div class="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
+              </div>
+              <canvas class="thumb-canvas w-full h-full object-contain hidden"></canvas>
+
+              <button onclick="event.stopPropagation(); openQuickLook('${file.id}', ${page.index})"
+                      class="absolute right-2 bottom-2 p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 text-white backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-all shadow-xs z-10"
+                      title="ページを大きく拡大プレビュー">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+              </button>
+
+              <div class="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-10">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-white/90 text-slate-700 shadow-2xs backdrop-blur-xs">
+                  P. ${page.index + 1}
+                </span>
+
+                <div class="w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                  page.isSelected ? 'bg-slate-900 text-white shadow-2xs scale-105' : 'bg-white/80 border border-slate-300 text-transparent'
+                }">
+                  <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+                </div>
+              </div>
+            </div>
+          `;
+
+          grid.appendChild(card);
+
+          if (pageObserver) {
+            pageObserver.observe(card);
+          } else {
+            loadCardThumbnail(card, file.id, page.index);
+          }
+        });
+
+        container.appendChild(grid);
+      });
+
+      lucide.createIcons({ root: container });
+    }
+
+    async function loadCardThumbnail(card, fileId, pageIndex) {
+      const file = state.files.find(f => f.id === fileId);
+      if (!file) return;
+
+      const pageData = file.pages[pageIndex];
+      const canvas = card.querySelector('.thumb-canvas');
+      const loader = card.querySelector('.thumb-loader');
+
+      if (pageData.thumbUrl) {
+        const img = new Image();
+        img.src = pageData.thumbUrl;
+        img.className = 'w-full h-full object-contain';
+        if (loader) loader.remove();
+        if (canvas) canvas.replaceWith(img);
+        return;
+      }
+
+      try {
+        const pdfPage = await file.pdfDocProxy.getPage(pageIndex + 1);
+        const viewport = pdfPage.getViewport({ scale: 0.4 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+
+        await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+        pageData.thumbUrl = canvas.toDataURL('image/jpeg', 0.7);
+        canvas.classList.remove('hidden');
+        if (loader) loader.classList.add('hidden');
+      } catch (err) {
+        console.error('Thumbnail render error:', err);
+      }
+    }
+
+    function togglePageSelection(fileId, pageIndex) {
+      const file = state.files.find(f => f.id === fileId);
+      if (!file) return;
+
+      const page = file.pages[pageIndex];
+      page.isSelected = !page.isSelected;
+
+      const card = document.querySelector(`.paper-card[data-file-id="${fileId}"][data-page-index="${pageIndex}"]`);
+      if (card) {
+        if (page.isSelected) {
+          card.classList.add('is-selected', 'ring-2', 'ring-slate-900');
+          card.classList.remove('opacity-85');
+          const chk = card.querySelector('.w-5.h-5');
+          if (chk) chk.className = 'w-5 h-5 rounded-md flex items-center justify-center transition-all bg-slate-900 text-white shadow-2xs scale-105';
+        } else {
+          card.classList.remove('is-selected', 'ring-2', 'ring-slate-900');
+          card.classList.add('opacity-85');
+          const chk = card.querySelector('.w-5.h-5');
+          if (chk) chk.className = 'w-5 h-5 rounded-md flex items-center justify-center transition-all bg-white/80 border border-slate-300 text-transparent';
+        }
+      }
+
+      updateSelectedCounts();
+      renderSidebarTabs();
+    }
+
+    function selectCurrentScope(selectState) {
+      const targetFiles = state.activeFileId === 'all'
+        ? state.files
+        : state.files.filter(f => f.id === state.activeFileId);
+
+      targetFiles.forEach(file => {
+        file.pages.forEach(p => p.isSelected = selectState);
+      });
+
+      renderPagesGrid();
+      renderSidebarTabs();
+      updateSelectedCounts();
+    }
+
+    function selectOddEvenScope(type) {
+      const targetFiles = state.activeFileId === 'all'
+        ? state.files
+        : state.files.filter(f => f.id === state.activeFileId);
+
+      targetFiles.forEach(file => {
+        file.pages.forEach(p => {
+          const isOdd = (p.index + 1) % 2 !== 0;
+          p.isSelected = (type === 'odd') ? isOdd : !isOdd;
+        });
+      });
+
+      renderPagesGrid();
+      renderSidebarTabs();
+      updateSelectedCounts();
+    }
+
+    function selectFilePages(fileId, selectState) {
+      const file = state.files.find(f => f.id === fileId);
+      if (!file) return;
+      file.pages.forEach(p => p.isSelected = selectState);
+      renderPagesGrid();
+      renderSidebarTabs();
+      updateSelectedCounts();
+    }
+
+    function updateSelectedCounts() {
+      const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+      const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
+
+      document.getElementById('selectedCountBadge').textContent = totalSelected;
+      document.getElementById('sidebarTotalSelected').textContent = `${totalSelected} / ${totalPages}`;
+
+      const pct = totalPages > 0 ? (totalSelected / totalPages) * 100 : 0;
+      document.getElementById('sidebarProgressBar').style.width = `${pct}%`;
+    }
+
+    function openQuickLook(fileId, pageIndex) {
+      const fileIdx = state.files.findIndex(f => f.id === fileId);
+      if (fileIdx === -1) return;
+
+      state.quickLook.isOpen = true;
+      state.quickLook.fileIndex = fileIdx;
+      state.quickLook.pageIndex = pageIndex;
+
+      document.getElementById('quickLookModal').classList.remove('hidden');
+      renderQuickLookPage();
+    }
+
+    function closeQuickLook() {
+      state.quickLook.isOpen = false;
+      document.getElementById('quickLookModal').classList.add('hidden');
+    }
+
+    async function renderQuickLookPage() {
+      const file = state.files[state.quickLook.fileIndex];
+      if (!file) return;
+
+      const pageIdx = state.quickLook.pageIndex;
+      const pageData = file.pages[pageIdx];
+
+      document.getElementById('qlTitle').textContent = file.name;
+      document.getElementById('qlPageBadge').textContent = `P. ${pageIdx + 1}`;
+      document.getElementById('qlCounter').textContent = `${pageIdx + 1} / ${file.pageCount}`;
+
+      const toggleBtn = document.getElementById('qlSelectToggleBtn');
+      const toggleTxt = document.getElementById('qlSelectToggleText');
+      if (pageData.isSelected) {
+        toggleBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-2xs';
+        toggleTxt.textContent = '選択中（解除）';
+      } else {
+        toggleBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-slate-100 hover:bg-slate-200 text-slate-700';
+        toggleTxt.textContent = '選択する';
+      }
+
+      const loading = document.getElementById('qlLoading');
+      const canvas = document.getElementById('qlCanvas');
+      loading.classList.remove('hidden');
+
+      try {
+        const pdfPage = await file.pdfDocProxy.getPage(pageIdx + 1);
+        const viewport = pdfPage.getViewport({ scale: 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
+      } catch (err) {
+        console.error('Quick look render error:', err);
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function toggleQuickLookSelection() {
+      const file = state.files[state.quickLook.fileIndex];
+      if (!file) return;
+      togglePageSelection(file.id, state.quickLook.pageIndex);
+      renderQuickLookPage();
+    }
+
+    function navigateQuickLook(delta) {
+      const file = state.files[state.quickLook.fileIndex];
+      if (!file) return;
+      let newIdx = state.quickLook.pageIndex + delta;
+      if (newIdx >= 0 && newIdx < file.pageCount) {
+        state.quickLook.pageIndex = newIdx;
+        renderQuickLookPage();
+      }
+    }
+
+    function setupKeyboardNav() {
+      window.addEventListener('keydown', (e) => {
+        if (!state.quickLook.isOpen) return;
+        if (e.key === 'Escape') closeQuickLook();
+        if (e.key === 'ArrowLeft') navigateQuickLook(-1);
+        if (e.key === 'ArrowRight') navigateQuickLook(1);
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          toggleQuickLookSelection();
+        }
+      });
+    }
+
+    function openExportSettingsModal() {
+      const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+      if (totalSelected === 0) {
+        showToast('抽出するページを1枚以上選択してください', true);
+        return;
+      }
+
+      document.getElementById('exportSummaryCount').textContent = `抽出対象: 計 ${totalSelected} ページ`;
+      const firstName = state.files[0]?.name.replace(/\.[^/.]+$/, "") || "Document";
+      document.getElementById('exportFileName').value = `${firstName}_extracted`;
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function closeExportSettingsModal() {
+      document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    function togglePasswordInput() {
+      const isEnabled = document.getElementById('enablePassword').checked;
+      document.getElementById('passwordSection').classList.toggle('hidden', !isEnabled);
+      if (isEnabled && !document.getElementById('pdfPassword').value) {
+        generateAutoPassword();
+      }
+    }
+
+    function toggleWatermarkInput() {
+      const isEnabled = document.getElementById('enableWatermark').checked;
+      document.getElementById('watermarkSection').classList.toggle('hidden', !isEnabled);
+    }
+
+    function toggleResizeSelect() {
+      const isEnabled = document.getElementById('enablePageResize').checked;
+      document.getElementById('resizeSection').classList.toggle('hidden', !isEnabled);
+    }
+
+    function setWatermarkPreset(text) {
+      document.getElementById('watermarkText').value = text;
+    }
+
+    function togglePasswordVisibility() {
+      const input = document.getElementById('pdfPassword');
+      const icon = document.getElementById('pwdEyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons({ root: icon.parentElement });
+    }
+
+    function generateAutoPassword() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
+      const array = new Uint32Array(12);
+      window.crypto.getRandomValues(array);
+      let pwd = '';
+      for (let i = 0; i < 12; i++) {
+        pwd += chars[array[i] % chars.length];
+      }
+      document.getElementById('pdfPassword').value = pwd;
+      document.getElementById('pdfPassword').type = 'text';
+      showToast('強力なパスワードを自動生成しました');
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
+      } else {
+        fallbackCopyText(text);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {}
+      document.body.removeChild(textArea);
+    }
+
+    async function generateWatermarkImage(pdfDoc, text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 800;
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, 800, 800);
+      ctx.save();
+      ctx.translate(400, 400);
+      ctx.rotate(-28 * Math.PI / 180);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const fontSize = 46;
+      ctx.font = `bold ${fontSize}px "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif`;
+
+      const textMetrics = ctx.measureText(text);
+      const textWidth = textMetrics.width;
+      const padX = 32;
+      const padY = 16;
+      const boxW = Math.max(textWidth + padX * 2, 240);
+      const boxH = fontSize + padY * 2;
+
+      ctx.strokeStyle = 'rgba(220, 38, 38, 0.22)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+
+      ctx.fillStyle = 'rgba(220, 38, 38, 0.22)';
+      ctx.fillText(text, 0, 2);
+      ctx.restore();
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64Data = dataUrl.split(',')[1];
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      return await pdfDoc.embedPng(bytes);
+    }
+
+    async function executeExportWithSettings() {
+      closeExportSettingsModal();
+      showProcessing('PDFを出力中...', 'セキュリティ設定と加工を適用しています');
+
+      const fileName = (document.getElementById('exportFileName').value.trim() || 'Kiri_Export') + '.pdf';
+      const enablePwd = document.getElementById('enablePassword').checked;
+      const password = document.getElementById('pdfPassword').value.trim();
+      const wipeMetadata = document.getElementById('wipeMetadata').checked;
+      const enableWatermark = document.getElementById('enableWatermark').checked;
+      const watermarkText = document.getElementById('watermarkText').value.trim();
+      const addPageNumbers = document.getElementById('addPageNumbers').checked;
+      const enableResize = document.getElementById('enablePageResize').checked;
+      const targetSizeName = document.getElementById('targetPageSize').value;
+      const targetOrientation = document.getElementById('targetPageOrientation')?.value || 'portrait';
+
+      if (enablePwd && !password) {
+        hideProcessing();
+        showToast('パスワードを入力してください', true);
+        return;
+      }
+
+      try {
+        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+        const outDoc = await PDFDocument.create();
+
+        const sizeDict = {
+          'A4': [595.28, 841.89],
+          'A3': [841.89, 1190.55],
+          'B5': [515.91, 728.50],
+          'B4': [728.50, 1031.81],
+          'Letter': [612.00, 792.00]
+        };
+
+        const selectedList = [];
+        state.files.forEach(f => {
+          f.pages.forEach(p => {
+            if (p.isSelected) {
+              selectedList.push({ fileId: f.id, pageIndex: p.index });
+            }
+          });
+        });
+
+        const loadedDocs = new Map();
+
+        if (enableResize) {
+          const [stdW, stdH] = sizeDict[targetSizeName] || sizeDict['A4'];
+
+          for (const item of selectedList) {
+            if (!loadedDocs.has(item.fileId)) {
+              const srcFile = state.files.find(f => f.id === item.fileId);
+              let bytes = srcFile.rawBytes;
+              if (!bytes || bytes.byteLength === 0) {
+                const freshBuffer = await srcFile.fileRef.arrayBuffer();
+                srcFile.rawBytes = new Uint8Array(freshBuffer.slice(0));
+                bytes = srcFile.rawBytes;
+              }
+              const srcDoc = await PDFDocument.load(bytes.slice(0));
+              loadedDocs.set(item.fileId, srcDoc);
+            }
+            const srcDoc = loadedDocs.get(item.fileId);
+
+            const srcPage = srcDoc.getPage(item.pageIndex);
+            const embeddedPage = await outDoc.embedPage(srcPage);
+            const srcSize = srcPage.getSize();
+            const isLandscape = srcSize.width > srcSize.height;
+
+            let canvasW, canvasH;
+            if (targetOrientation === 'portrait') {
+              canvasW = Math.min(stdW, stdH);
+              canvasH = Math.max(stdW, stdH);
+            } else if (targetOrientation === 'landscape') {
+              canvasW = Math.max(stdW, stdH);
+              canvasH = Math.min(stdW, stdH);
+            } else {
+              canvasW = isLandscape ? Math.max(stdW, stdH) : Math.min(stdW, stdH);
+              canvasH = isLandscape ? Math.min(stdW, stdH) : Math.max(stdW, stdH);
+            }
+
+            const margin = 14;
+            const availW = canvasW - margin * 2;
+            const availH = canvasH - margin * 2;
+            const scale = Math.min(availW / srcSize.width, availH / srcSize.height);
+
+            const scaledW = srcSize.width * scale;
+            const scaledH = srcSize.height * scale;
+            const posX = (canvasW - scaledW) / 2;
+            const posY = (canvasH - scaledH) / 2;
+
+            const newPage = outDoc.addPage([canvasW, canvasH]);
+            newPage.drawPage(embeddedPage, {
+              x: posX,
+              y: posY,
+              xScale: scale,
+              yScale: scale
+            });
+          }
+        } else {
+          for (const item of selectedList) {
+            if (!loadedDocs.has(item.fileId)) {
+              const srcFile = state.files.find(f => f.id === item.fileId);
+              let bytes = srcFile.rawBytes;
+              if (!bytes || bytes.byteLength === 0) {
+                const freshBuffer = await srcFile.fileRef.arrayBuffer();
+                srcFile.rawBytes = new Uint8Array(freshBuffer.slice(0));
+                bytes = srcFile.rawBytes;
+              }
+              const srcDoc = await PDFDocument.load(bytes.slice(0));
+              loadedDocs.set(item.fileId, srcDoc);
+            }
+            const srcDoc = loadedDocs.get(item.fileId);
+            const [copiedPage] = await outDoc.copyPages(srcDoc, [item.pageIndex]);
+            outDoc.addPage(copiedPage);
+          }
+        }
+
+        const pages = outDoc.getPages();
+        const totalPages = pages.length;
+        const font = await outDoc.embedFont(StandardFonts.Helvetica);
+
+        if (enableWatermark && watermarkText) {
+          const watermarkImage = await generateWatermarkImage(outDoc, watermarkText);
+          pages.forEach(page => {
+            const { width, height } = page.getSize();
+            const wmSize = Math.min(width, height) * 0.82;
+            const posX = (width - wmSize) / 2;
+            const posY = (height - wmSize) / 2;
+            page.drawImage(watermarkImage, {
+              x: posX,
+              y: posY,
+              width: wmSize,
+              height: wmSize,
+            });
+          });
+        }
+
+        if (addPageNumbers) {
+          pages.forEach((page, idx) => {
+            const { width } = page.getSize();
+            const text = `${idx + 1} / ${totalPages}`;
+            page.drawText(text, {
+              x: width / 2 - 15,
+              y: 20,
+              size: 9,
+              font: font,
+              color: rgb(0.4, 0.4, 0.4),
+            });
+          });
+        }
+
+        if (wipeMetadata) {
+          outDoc.setTitle('');
+          outDoc.setAuthor('');
+          outDoc.setSubject('');
+          outDoc.setKeywords([]);
+          outDoc.setProducer('KiriPDF Local Atelier');
+          outDoc.setCreator('KiriPDF Local Atelier');
+        }
+
+        let pdfBytes = await outDoc.save();
+
+        if (enablePwd && password) {
+          showProcessing('パスワード暗号化中...', '端末内CPUでAES暗号化ストリームを構築中');
+          try {
+            pdfBytes = await encryptPdfDocument(pdfBytes, password);
+            copyToClipboard(password);
+            showToast(`🔒 暗号化完了！パスワードをコピーしました: ${password}`);
+          } catch (encryptError) {
+            console.error('Password encryption failed:', encryptError);
+            hideProcessing();
+            showToast('パスワード暗号化の適用に失敗しました。', true);
+            return;
+          }
+        } else {
+          showToast('PDFを正常に出力しました');
+        }
+
+        downloadBlob(new Blob([pdfBytes], { type: 'application/pdf' }), fileName);
+
+      } catch (err) {
+        console.error('Export error:', err);
+        showToast('出力中にエラーが発生しました', true);
+      } finally {
+        hideProcessing();
+      }
+    }
+
+    async function encryptPdfDocument(pdfBytes, password) {
+      let encryptor = window.PDFEncrypt;
+      if (!encryptor || typeof encryptor.encryptPDF !== 'function') {
+        throw new Error('PDF暗号化モジュールが利用できません');
+      }
+
+      const isCryptoSubtleAvailable = typeof window !== 'undefined' && window.crypto && !!window.crypto.subtle;
+      const algorithm = isCryptoSubtleAvailable ? 'AES-256' : 'RC4';
+
+      return await encryptor.encryptPDF(new Uint8Array(pdfBytes), password, {
+        algorithm: algorithm,
+        allowPrinting: true,
+        allowModifying: false,
+        allowCopying: true,
+        allowExtraction: true
+      });
+    }
+
+    async function splitAllPagesToZip() {
+      const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
+      if (totalPages === 0) {
+        showToast('ファイルが読み込まれていません', true);
+        return;
+      }
+
+      showProcessing('全ページ分割中...', `全 ${totalPages} ページを個別ZIP化しています`);
+
+      try {
+        const { PDFDocument } = PDFLib;
+        const zip = new JSZip();
+
+        for (const file of state.files) {
+          const folder = state.files.length > 1 ? zip.folder(file.name.replace(/\.[^/.]+$/, "")) : zip;
+          let bytes = file.rawBytes;
+          if (!bytes || bytes.byteLength === 0) {
+            const freshBuffer = await file.fileRef.arrayBuffer();
+            file.rawBytes = new Uint8Array(freshBuffer.slice(0));
+            bytes = file.rawBytes;
+          }
+          const srcDoc = await PDFDocument.load(bytes.slice(0));
+
+          for (let p = 0; p < file.pageCount; p++) {
+            const singleDoc = await PDFDocument.create();
+            const [copied] = await singleDoc.copyPages(srcDoc, [p]);
+            singleDoc.addPage(copied);
+            const singleBytes = await singleDoc.save();
+            const pNum = String(p + 1).padStart(3, '0');
+            folder.file(`page_${pNum}.pdf`, singleBytes);
+          }
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        downloadBlob(zipBlob, `Kiri_Split_Pages_${Date.now()}.zip`);
+        showToast('全ページのZIP分割が完了しました');
+      } catch (err) {
+        console.error('Split zip error:', err);
+        showToast('分割処理中にエラーが発生しました', true);
+      } finally {
+        hideProcessing();
+      }
+    }
+
+    async function mergeAllFiles() {
+      if (state.files.length < 2) {
+        showToast('結合するには2つ以上のPDFが必要です', true);
+        return;
+      }
+
+      showProcessing('全PDFを結合中...', `${state.files.length} つのファイルを統合しています`);
+
+      try {
+        const { PDFDocument } = PDFLib;
+        const mergedDoc = await PDFDocument.create();
+
+        for (const file of state.files) {
+          let bytes = file.rawBytes;
+          if (!bytes || bytes.byteLength === 0) {
+            const freshBuffer = await file.fileRef.arrayBuffer();
+            file.rawBytes = new Uint8Array(freshBuffer.slice(0));
+            bytes = file.rawBytes;
+          }
+          const srcDoc = await PDFDocument.load(bytes.slice(0));
+          const pageIndices = Array.from({ length: file.pageCount }, (_, i) => i);
+          const copiedPages = await mergedDoc.copyPages(srcDoc, pageIndices);
+          copiedPages.forEach(p => mergedDoc.addPage(p));
+        }
+
+        const mergedBytes = await mergedDoc.save();
+        downloadBlob(new Blob([mergedBytes], { type: 'application/pdf' }), `Kiri_Merged_${state.files.length}Files.pdf`);
+        showToast('すべてのPDFを1つに結合しました');
+      } catch (err) {
+        console.error('Merge error:', err);
+        showToast('結合処理中にエラーが発生しました', true);
+      } finally {
+        hideProcessing();
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 200);
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.textContent = msg;
+      toastIcon.innerHTML = isError
+        ? '<i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>'
+        : '<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>';
+
+      lucide.createIcons({ root: toastIcon });
+
+      toast.classList.remove('hidden');
+      toast.classList.remove('translate-y-2');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2');
+        setTimeout(() => toast.classList.add('hidden'), 200);
+      }, 3500);
+    }
+
+    function showProcessing(title, subtext) {
+      document.getElementById('processingTitle').textContent = title;
+      document.getElementById('processingSubtext').textContent = subtext;
+      document.getElementById('processingOverlay').classList.remove('hidden');
+    }
+
+    function hideProcessing() {
+      document.getElementById('processingOverlay').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
