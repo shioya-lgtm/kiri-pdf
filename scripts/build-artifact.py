@@ -3,11 +3,14 @@
 出力先: artifact/（git 管理外）
   artifact/index.html          ページ本体（doctype/html/head/body なし）
   artifact/vendor/pdf-lib.min.js  U+FFFD を \\uFFFD にエスケープしたコピー
+  artifact/vendor/cmaps.json      vendor/cmaps/*.bcmap を base64 でまとめたもの
 
 アーティファクト版の違い:
   - Service Worker・インストール導線・manifest を外す
   - ダウンロードは downloads capability 経由（閲覧者の確認後に保存）
 """
+import base64
+import json
 import pathlib
 import re
 
@@ -37,12 +40,38 @@ head, n = re.subn(r'<title>.*?</title>', '<title>KiriPDF</title>', head)
 assert n == 1
 head = head.replace('    :root {', '    html, body { height: 100%; }\n    body { background: #f8fafc; }\n    #kiriApp { height: 100%; }\n\n    :root {', 1)
 
+# .bcmap はアーティファクトで配信できないため、JSON にまとめて独自ローダーで渡す
+cmap_hook = "            cMapPacked: true\n"
+assert body.count(cmap_hook) == 1
+body = body.replace(cmap_hook, "            cMapPacked: true,\n            ...artifactCMapOptions()\n")
+
 start = body.index('    // PWA: オフライン用キャッシュ')
 end = body.index('    // インストール済みアプリで')
 body = body[:start] + body[end:]
 
 override = '''
   <script>
+    // artifact 版: CMap は vendor/cmaps.json（base64）から読み込む
+    let artifactCMapBundle = null;
+
+    class ArtifactCMapReaderFactory {
+      async fetch({ name }) {
+        if (!artifactCMapBundle) {
+          artifactCMapBundle = fetch('vendor/cmaps.json').then(res => res.json());
+        }
+        const bundle = await artifactCMapBundle;
+        if (!bundle[name]) throw new Error(`CMap not found: ${name}`);
+        const binary = atob(bundle[name]);
+        const data = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i);
+        return { cMapData: data, compressionType: 1 };
+      }
+    }
+
+    function artifactCMapOptions() {
+      return { useWorkerFetch: false, CMapReaderFactory: ArtifactCMapReaderFactory };
+    }
+
     // artifact 版: ダウンロードは downloads capability 経由（閲覧者の確認後に保存）
     let artifactDownloadsPromise = null;
 
@@ -71,6 +100,10 @@ page = head.strip() + '\n\n<div id="kiriApp" class="' + body_open.group(1) + '">
 
 (OUT / 'vendor').mkdir(parents=True, exist_ok=True)
 (OUT / 'index.html').write_text(page, encoding='utf-8')
+
+cmaps = {p.stem: base64.b64encode(p.read_bytes()).decode('ascii')
+         for p in sorted((ROOT / 'vendor' / 'cmaps').glob('*.bcmap'))}
+(OUT / 'vendor' / 'cmaps.json').write_text(json.dumps(cmaps, separators=(',', ':')), encoding='utf-8')
 
 pdf_lib = (ROOT / 'vendor' / 'pdf-lib.min.js').read_text(encoding='utf-8')
 (OUT / 'vendor' / 'pdf-lib.min.js').write_text(pdf_lib.replace('�', '\\uFFFD'), encoding='utf-8')
