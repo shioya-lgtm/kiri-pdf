@@ -4,9 +4,13 @@
   "description": "KiriPDF — Local PDF Atelier (PWA)",
   "license": "MIT",
   "scripts": {
-    "build:css": "tailwindcss -c tailwind.config.js -i css/tailwind.src.css -o css/tailwind.css --minify"
+    "build:css": "tailwindcss -c tailwind.config.js -i css/tailwind.src.css -o css/tailwind.css --minify",
+    "test": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
     "tailwindcss": "3.4.17"
   }
 }

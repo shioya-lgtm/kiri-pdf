@@ -51,6 +51,7 @@ AES-256 暗号化は HTTPS 上、または直接ファイルを開いた場合�
 - 同梱ライブラリ: pdf-lib 1.17.1 / PDF.js 3.11.174（日本語表示用 CMap を含む）/ @pdfsmaller/pdf-encrypt 1.2.0 / JSZip 3.10.1 / Lucide 1.58.0（`vendor/`、ライセンスは `vendor/licenses/`）
 - CSS は Tailwind CSS 3.4.17 で事前生成しています。`index.html` のクラスを変更したら `npm install && npm run build:css` で `css/tailwind.css` を再生成してください。
 - 同梱ファイルを変更して公開する際は、`sw.js` の `CACHE_VERSION` を上げてください（上げないとインストール済みの端末が旧版のまま動きます）。
+- 自動テスト: `npm install && npx playwright install chromium && npm test`（`tests/`）。`main` へのプッシュ時は GitHub Actions でも自動実行されます。
 - claude.ai のアーティファクト版は `python3 scripts/build-artifact.py` で `artifact/` に生成します（Service Worker を外し、保存は downloads capability 経由）。
 
 ## ライセンス
