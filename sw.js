@@ -1,6 +1,6 @@
 // KiriPDF Service Worker — アプリ本体を端末にキャッシュしてオフライン動作させる。
 // 同梱ファイルを変更したら CACHE_VERSION を上げること（上げないと利用者側が旧版のまま）。
-const CACHE_VERSION = 'kiripdf-v3';
+const CACHE_VERSION = 'kiripdf-v4';
 
 const APP_SHELL = [
   './',

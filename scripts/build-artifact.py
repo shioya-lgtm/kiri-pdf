@@ -31,6 +31,7 @@ body_open = re.search(r'<body[^>]*class="([^"]*)"[^>]*>', src)
 body = src[body_open.end():src.index('</body>')]
 
 for pat in [r'\s*<meta charset[^>]*>', r'\s*<meta name="viewport"[^>]*>', r'\s*<!-- PWA -->',
+            r'\s*<!-- 外部への通信をブラウザ側で禁止する[^>]*-->', r'\s*<meta http-equiv="Content-Security-Policy"[^>]*>',
             r'\s*<link rel="manifest"[^>]*>', r'\s*<meta name="theme-color"[^>]*>',
             r'\s*<link rel="icon"[^>]*>', r'\s*<link rel="apple-touch-icon"[^>]*>',
             r'\s*<meta name="apple-mobile-web-app[^>]*>']:
@@ -41,9 +42,9 @@ assert n == 1
 head = head.replace('    :root {', '    html, body { height: 100%; }\n    body { background: #f8fafc; }\n    #kiriApp { height: 100%; }\n\n    :root {', 1)
 
 # .bcmap はアーティファクトで配信できないため、JSON にまとめて独自ローダーで渡す
-cmap_hook = "            cMapPacked: true\n"
+cmap_hook = "            cMapPacked: true,\n"
 assert body.count(cmap_hook) == 1
-body = body.replace(cmap_hook, "            cMapPacked: true,\n            ...artifactCMapOptions()\n")
+body = body.replace(cmap_hook, "            cMapPacked: true,\n            ...artifactCMapOptions(),\n")
 
 start = body.index('    // PWA: オフライン用キャッシュ')
 end = body.index('    // インストール済みアプリで')

@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 外部への通信をブラウザ側で禁止する（同梱ファイル以外は読み込み・送信できない） -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>KiriPDF — Local PDF Atelier</title>
 
   <!-- PWA -->
@@ -125,7 +127,7 @@
         <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
         <span>PDFを追加</span>
       </label>
-      <input type="file" id="fileInput" multiple accept="application/pdf" class="hidden">
+      <input type="file" id="fileInput" multiple accept="application/pdf,image/jpeg,image/png,image/webp" class="hidden">
 
       <button id="clearAllBtn" onclick="clearAllFiles()" class="hidden items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="全ファイルをクリア">
         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -141,8 +143,8 @@
         <div class="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 group-hover:text-slate-900 flex items-center justify-center group-hover:scale-105 transition-all mb-4">
           <i data-lucide="file-up" class="w-7 h-7 stroke-[1.8]"></i>
         </div>
-        <h2 class="text-sm font-bold text-slate-900 mb-1 tracking-tight">PDFファイルをドラッグ＆ドロップ</h2>
-        <p class="text-xs text-slate-400 mb-4 leading-relaxed">複数ファイル対応・ページ抽出・分割・結合・パスワード保護・用紙統一</p>
+        <h2 class="text-sm font-bold text-slate-900 mb-1 tracking-tight">PDF・画像ファイルをドラッグ＆ドロップ</h2>
+        <p class="text-xs text-slate-400 mb-4 leading-relaxed">複数ファイル対応・ページ抽出・並べ替え・分割・結合・パスワード保護・用紙統一<br>画像（JPG / PNG / WebP）はA4のPDFに変換して読み込みます</p>
         <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3.5 py-1.5 rounded-lg group-hover:bg-slate-200 transition-colors">
           <i data-lucide="folder-open" class="w-3.5 h-3.5 text-slate-500"></i>
           <span>ファイルを選択する</span>
@@ -180,6 +182,11 @@
             <div class="w-[1px] h-3 bg-slate-300 mx-0.5"></div>
             <button onclick="selectOddEvenScope('odd')" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">奇数</button>
             <button onclick="selectOddEvenScope('even')" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">偶数</button>
+            <div class="w-[1px] h-3 bg-slate-300 mx-0.5"></div>
+            <input type="text" id="pageRangeInput" placeholder="例: 1-3, 5" title="ページ番号で選択（例: 1-3, 5, 8-10）。入力した順に出力されます"
+                   onkeydown="if (event.key === 'Enter') selectByRange()"
+                   class="w-24 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <button onclick="selectByRange()" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">範囲選択</button>
           </div>
 
           <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
@@ -302,10 +309,13 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <span class="block font-semibold text-slate-700">出力順</span>
-            <button type="button" onclick="resetExportOrder()" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">ファイル順に並べ直す</button>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="addBlankPage()" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">＋ 白紙ページを追加</button>
+              <button type="button" onclick="resetExportOrder()" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">ファイル順に並べ直す</button>
+            </div>
           </div>
           <div id="exportOrderList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-1 bg-slate-50 border border-slate-200 rounded-lg"></div>
-          <p class="text-[10px] text-slate-400 mt-1 leading-tight">選択した順に出力されます。ドラッグ、または ▲▼ で並べ替えできます。</p>
+          <p class="text-[10px] text-slate-400 mt-1 leading-tight">選択した順に出力されます。ドラッグ、または ▲▼ で並べ替えできます。白紙ページは両面印刷の位置合わせなどに使えます。</p>
         </div>
 
         <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2.5">
@@ -411,12 +421,12 @@
       </div>
 
       <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
-        <span class="text-[11px] text-slate-400" id="exportSummaryCount">対象: 0 ページ</span>
+        <span class="text-[11px] text-slate-400 min-w-0 mr-3" id="exportSummaryCount">対象: 0 ページ</span>
         <div class="flex items-center gap-2">
-          <button onclick="closeExportSettingsModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors">
+          <button onclick="closeExportSettingsModal()" class="whitespace-nowrap px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors">
             キャンセル
           </button>
-          <button onclick="executeExportWithSettings()" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs active:scale-[0.98] transition-all flex items-center gap-1.5">
+          <button onclick="executeExportWithSettings()" class="whitespace-nowrap px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs active:scale-[0.98] transition-all flex items-center gap-1.5">
             <i data-lucide="check" class="w-3.5 h-3.5"></i>
             <span>設定を適用して出力</span>
           </button>
@@ -530,7 +540,7 @@
       });
 
       window.addEventListener('drop', (e) => {
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        const files = Array.from(e.dataTransfer.files).filter(f => isPdfFile(f) || isImageFile(f));
         if (files.length > 0) handleFilesSelected(files);
       });
 
@@ -541,11 +551,32 @@
       });
     }
 
+    function isPdfFile(file) {
+      return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    }
+
+    function isImageFile(file) {
+      return ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+    }
+
     async function handleFilesSelected(files) {
       showProcessing('PDFを解析中...', 'サムネイルを生成しています');
       const restrictedNames = [];
 
-      for (const file of files) {
+      const pdfFiles = files.filter(isPdfFile);
+      const imageFiles = files.filter(f => !isPdfFile(f) && isImageFile(f));
+      if (imageFiles.length > 0) {
+        showProcessing('画像をPDFに変換中...', `${imageFiles.length} 枚の画像をA4に配置しています`);
+        try {
+          pdfFiles.push(await convertImagesToPdf(imageFiles));
+        } catch (err) {
+          console.error('Image conversion error:', err);
+          showToast(err.message || '画像の変換に失敗しました', true);
+        }
+        showProcessing('PDFを解析中...', 'サムネイルを生成しています');
+      }
+
+      for (const file of pdfFiles) {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const rawBytes = new Uint8Array(arrayBuffer.slice(0));
@@ -555,7 +586,9 @@
             data: pdfJsWorkerBytes,
             // 日本語など、フォント未埋め込みPDFの文字表示用
             cMapUrl: new URL('vendor/cmaps/', location.href).href,
-            cMapPacked: true
+            cMapPacked: true,
+            // CSP で eval を禁止しているため
+            isEvalSupported: false
           }).promise;
           const pageCount = pdfDocProxy.numPages;
 
@@ -605,6 +638,106 @@
       }
     }
 
+    // 画像を1枚1ページのA4 PDFにまとめる（縦横は画像に合わせ、余白なしで中央に収める）
+    async function convertImagesToPdf(imageFiles) {
+      const { PDFDocument } = PDFLib;
+      const doc = await PDFDocument.create();
+      const sorted = [...imageFiles].sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
+      const [a4W, a4H] = [595.28, 841.89];
+
+      for (const file of sorted) {
+        let bitmap;
+        try {
+          // スマホ写真の向き（EXIF）を反映して読み込む
+          bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        } catch (err) {
+          throw new Error(`"${file.name}" は読み込めない画像形式です（JPG / PNG / WebP に対応）`);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+
+        // PNG（スクリーンショット等）は劣化させず、写真は JPEG で容量を抑える
+        const isPng = file.type === 'image/png' || /\.png$/i.test(file.name);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, isPng ? 'image/png' : 'image/jpeg', 0.92));
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const image = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+
+        const landscape = image.width > image.height;
+        const pageW = landscape ? a4H : a4W;
+        const pageH = landscape ? a4W : a4H;
+        const scale = Math.min(pageW / image.width, pageH / image.height);
+        const drawW = image.width * scale;
+        const drawH = image.height * scale;
+        const page = doc.addPage([pageW, pageH]);
+        page.drawImage(image, { x: (pageW - drawW) / 2, y: (pageH - drawH) / 2, width: drawW, height: drawH });
+      }
+
+      doc.setProducer('KiriPDF Local Atelier');
+      doc.setCreator('KiriPDF Local Atelier');
+      const name = sorted.length === 1 ? `${baseName(sorted[0].name)}.pdf` : `画像_${dateStamp()}.pdf`;
+      return new File([await doc.save()], name, { type: 'application/pdf' });
+    }
+
+    // 「1-3, 5, 8-10」形式で選択する。入力した順に出力順へ追加する
+    function parsePageRanges(text) {
+      const normalized = text.normalize('NFKC').replace(/[〜~]/g, '-');
+      const tokens = normalized.split(/[,、\s]+/).filter(Boolean);
+      if (tokens.length === 0) return null;
+      const pages = [];
+      for (const token of tokens) {
+        const m = token.match(/^(\d+)(?:-(\d+))?$/);
+        if (!m) return null;
+        const from = parseInt(m[1]);
+        const to = m[2] ? parseInt(m[2]) : from;
+        if (from < 1 || to < 1) return null;
+        const step = from <= to ? 1 : -1;
+        for (let n = from; n !== to + step; n += step) pages.push(n);
+      }
+      return pages;
+    }
+
+    function selectByRange() {
+      const input = document.getElementById('pageRangeInput');
+      const pages = parsePageRanges(input.value);
+      if (!pages) {
+        showToast('ページ範囲は「1-3, 5, 8-10」の形式で入力してください', true);
+        return;
+      }
+
+      let added = 0;
+      let already = 0;
+      let outOfRange = 0;
+      getScopeFiles().forEach(file => {
+        pages.forEach(n => {
+          if (n > file.pageCount) {
+            outOfRange += 1;
+            return;
+          }
+          const page = file.pages[n - 1];
+          if (page.isSelected) {
+            already += 1;
+          } else {
+            setPageSelected(file, page, true);
+            added += 1;
+          }
+        });
+      });
+      afterSelectionChange();
+
+      const scope = state.activeFileId === 'all' && state.files.length > 1 ? '各ファイルで' : '';
+      const notes = [];
+      if (already) notes.push(`選択済み ${already} 件`);
+      if (outOfRange) notes.push(`ページ数を超える ${outOfRange} 件は無視`);
+      showToast(`${scope}${added} ページを選択しました` + (notes.length ? `（${notes.join('、')}）` : ''), added === 0);
+    }
+
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
@@ -616,6 +749,26 @@
     function parsePageKey(key) {
       const sep = key.lastIndexOf(':');
       return { fileId: key.slice(0, sep), pageIndex: parseInt(key.slice(sep + 1)) };
+    }
+
+    // 白紙ページは出力順の中だけに存在する（キー: blank:<連番>）
+    let blankCounter = 0;
+
+    function isBlankKey(key) {
+      return key.startsWith('blank:');
+    }
+
+    function selectedPageKeys() {
+      return state.selectionOrder.filter(k => !isBlankKey(k));
+    }
+
+    function baseName(fileName) {
+      return fileName.replace(/\.[^/.]+$/, '');
+    }
+
+    function dateStamp() {
+      const d = new Date();
+      return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
     }
 
     function normalizeRotation(angle) {
@@ -659,7 +812,7 @@
         }`;
         allBtn.onclick = () => setActiveFile('all');
 
-        const totalSelected = state.selectionOrder.length;
+        const totalSelected = selectedPageKeys().length;
         const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
 
         allBtn.innerHTML = `
@@ -900,15 +1053,16 @@
     }
 
     function rotateSelectedPages() {
-      if (state.selectionOrder.length === 0) {
+      const keys = selectedPageKeys();
+      if (keys.length === 0) {
         showToast('回転するページを選択してください', true);
         return;
       }
-      state.selectionOrder.forEach(key => {
+      keys.forEach(key => {
         const { fileId, pageIndex } = parsePageKey(key);
         rotatePage(fileId, pageIndex);
       });
-      showToast(`${state.selectionOrder.length} ページを右に90°回転しました`);
+      showToast(`${keys.length} ページを右に90°回転しました`);
     }
 
     function setPageSelected(file, page, selected) {
@@ -968,7 +1122,7 @@
     }
 
     function updateSelectedCounts() {
-      const totalSelected = state.selectionOrder.length;
+      const totalSelected = selectedPageKeys().length;
       const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
 
       document.getElementById('selectedCountBadge').textContent = totalSelected;
@@ -1085,23 +1239,28 @@
     }
 
     function openExportSettingsModal() {
-      const totalSelected = state.selectionOrder.length;
-      if (totalSelected === 0) {
+      if (selectedPageKeys().length === 0) {
         showToast('抽出するページを1枚以上選択してください', true);
         return;
       }
 
-      const restricted = findRestrictedFiles(state.selectionOrder.map(k => parsePageKey(k).fileId));
+      const restricted = findRestrictedFiles(selectedPageKeys().map(k => parsePageKey(k).fileId));
       if (restricted.length > 0) {
         showToast(`"${restricted.map(f => f.name).join('", "')}" は編集制限付きのため出力できません。選択を解除してください`, true);
         return;
       }
 
-      document.getElementById('exportSummaryCount').textContent = `抽出対象: 計 ${totalSelected} ページ`;
-      const firstName = state.files[0]?.name.replace(/\.[^/.]+$/, "") || "Document";
-      document.getElementById('exportFileName').value = `${firstName}_extracted`;
+      const firstPage = state.selectionOrder.find(k => !isBlankKey(k));
+      const firstFile = state.files.find(f => f.id === parsePageKey(firstPage).fileId);
+      document.getElementById('exportFileName').value = `${baseName(firstFile.name)}_extracted`;
       renderExportOrderList();
       document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function updateExportSummary() {
+      const blanks = state.selectionOrder.length - selectedPageKeys().length;
+      document.getElementById('exportSummaryCount').textContent =
+        `出力: 計 ${state.selectionOrder.length} ページ` + (blanks ? `（うち白紙 ${blanks}）` : '');
     }
 
     function closeExportSettingsModal() {
@@ -1114,10 +1273,11 @@
       list.innerHTML = '';
 
       state.selectionOrder.forEach((key, idx) => {
+        const isBlank = isBlankKey(key);
         const { fileId, pageIndex } = parsePageKey(key);
-        const file = state.files.find(f => f.id === fileId);
-        if (!file) return;
-        const page = file.pages[pageIndex];
+        const file = isBlank ? null : state.files.find(f => f.id === fileId);
+        if (!isBlank && !file) return;
+        const page = isBlank ? null : file.pages[pageIndex];
         const isLast = idx === state.selectionOrder.length - 1;
 
         const row = document.createElement('div');
@@ -1127,16 +1287,21 @@
         row.innerHTML = `
           <i data-lucide="grip-vertical" class="w-3 h-3 text-slate-300 flex-shrink-0"></i>
           <span class="font-mono text-[10px] text-slate-400 w-5 text-right flex-shrink-0">${idx + 1}</span>
-          <div class="w-6 h-8 bg-slate-100 rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
-            ${page.thumbUrl ? `<img src="${page.thumbUrl}" alt="" class="w-full h-full object-contain">` : ''}
+          <div class="w-6 h-8 ${isBlank ? 'bg-white border border-dashed border-slate-300' : 'bg-slate-100'} rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
+            ${page && page.thumbUrl ? `<img src="${page.thumbUrl}" alt="" class="w-full h-full object-contain">` : ''}
           </div>
-          <span class="flex-1 min-w-0 truncate text-[11px] text-slate-700" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-          <span class="font-mono text-[10px] text-slate-500 flex-shrink-0">P. ${pageIndex + 1}${page.rotation ? ` ↻${page.rotation}°` : ''}</span>
+          ${isBlank
+            ? '<span class="flex-1 min-w-0 truncate text-[11px] text-slate-500 italic">白紙ページ</span>'
+            : `<span class="flex-1 min-w-0 truncate text-[11px] text-slate-700" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+          <span class="font-mono text-[10px] text-slate-500 flex-shrink-0">P. ${pageIndex + 1}${page.rotation ? ` ↻${page.rotation}°` : ''}</span>`}
           <button type="button" onclick="moveExportItem(${idx}, ${idx - 1})" ${idx === 0 ? 'disabled' : ''} class="p-0.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none" title="上へ">
             <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
           </button>
           <button type="button" onclick="moveExportItem(${idx}, ${idx + 1})" ${isLast ? 'disabled' : ''} class="p-0.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none" title="下へ">
             <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+          </button>
+          <button type="button" onclick="removeExportItem(${idx})" class="p-0.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="${isBlank ? '白紙ページを削除' : '選択を解除'}">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         `;
 
@@ -1162,6 +1327,36 @@
       });
 
       lucide.createIcons({ root: list });
+      updateExportSummary();
+    }
+
+    function addBlankPage() {
+      blankCounter += 1;
+      state.selectionOrder.push(`blank:${blankCounter}`);
+      renderExportOrderList();
+      refreshSelectionBadges();
+      const list = document.getElementById('exportOrderList');
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function removeExportItem(idx) {
+      const key = state.selectionOrder[idx];
+      if (!key) return;
+      if (isBlankKey(key)) {
+        state.selectionOrder.splice(idx, 1);
+      } else {
+        const { fileId, pageIndex } = parsePageKey(key);
+        const file = state.files.find(f => f.id === fileId);
+        setPageSelected(file, file.pages[pageIndex], false);
+      }
+      if (selectedPageKeys().length === 0) {
+        state.selectionOrder = [];
+        closeExportSettingsModal();
+        showToast('選択ページがなくなりました', true);
+      } else {
+        renderExportOrderList();
+      }
+      afterSelectionChange();
     }
 
     function moveExportItem(from, to) {
@@ -1175,11 +1370,14 @@
 
     function resetExportOrder() {
       const fileRank = new Map(state.files.map((f, i) => [f.id, i]));
+      const blanks = state.selectionOrder.filter(isBlankKey);
+      state.selectionOrder = selectedPageKeys();
       state.selectionOrder.sort((a, b) => {
         const pa = parsePageKey(a);
         const pb = parsePageKey(b);
         return (fileRank.get(pa.fileId) - fileRank.get(pb.fileId)) || (pa.pageIndex - pb.pageIndex);
       });
+      state.selectionOrder.push(...blanks);
       renderExportOrderList();
       refreshSelectionBadges();
     }
@@ -1390,6 +1588,21 @@
         const loadedDocs = new Map();
 
         for (const key of state.selectionOrder) {
+          if (isBlankKey(key)) {
+            // 白紙は直前のページと同じ大きさ（先頭なら規格サイズ or A4 縦）
+            const prev = outDoc.getPageCount() > 0 ? outDoc.getPage(outDoc.getPageCount() - 1) : null;
+            if (prev && !enableResize) {
+              const frame = visualFrame(prev);
+              outDoc.addPage([frame.width, frame.height]);
+            } else if (prev) {
+              const { width, height } = prev.getSize();
+              outDoc.addPage([width, height]);
+            } else {
+              const landscape = targetOrientation === 'landscape';
+              outDoc.addPage(enableResize && landscape ? [Math.max(stdW, stdH), Math.min(stdW, stdH)] : [Math.min(stdW, stdH), Math.max(stdW, stdH)]);
+            }
+            continue;
+          }
           const { fileId, pageIndex } = parsePageKey(key);
           const srcFile = state.files.find(f => f.id === fileId);
           const srcDoc = await loadSourceDoc(srcFile, loadedDocs);
@@ -1490,7 +1703,7 @@
           outDoc.setCreator('KiriPDF Local Atelier');
         } else {
           // 1件目のページの元PDFから文書情報を引き継ぐ
-          const firstDoc = loadedDocs.get(parsePageKey(state.selectionOrder[0]).fileId);
+          const firstDoc = loadedDocs.get(parsePageKey(selectedPageKeys()[0]).fileId);
           const title = firstDoc.getTitle();
           const author = firstDoc.getAuthor();
           const subject = firstDoc.getSubject();
@@ -1574,7 +1787,7 @@
         const zip = new JSZip();
 
         for (const file of state.files) {
-          const folder = state.files.length > 1 ? zip.folder(file.name.replace(/\.[^/.]+$/, "")) : zip;
+          const folder = state.files.length > 1 ? zip.folder(baseName(file.name)) : zip;
           const srcDoc = await loadSourceDoc(file);
 
           for (let p = 0; p < file.pageCount; p++) {
@@ -1589,7 +1802,8 @@
         }
 
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        downloadBlob(zipBlob, `Kiri_Split_Pages_${Date.now()}.zip`);
+        const zipName = state.files.length === 1 ? `${baseName(state.files[0].name)}_split.zip` : `KiriPDF_split_${dateStamp()}.zip`;
+        downloadBlob(zipBlob, zipName);
         showToast('全ページのZIP分割が完了しました');
       } catch (err) {
         console.error('Split zip error:', err);
@@ -1628,7 +1842,7 @@
         }
 
         const mergedBytes = await mergedDoc.save();
-        downloadBlob(new Blob([mergedBytes], { type: 'application/pdf' }), `Kiri_Merged_${state.files.length}Files.pdf`);
+        downloadBlob(new Blob([mergedBytes], { type: 'application/pdf' }), `${baseName(state.files[0].name)}_merged_${dateStamp()}.pdf`);
         showToast('すべてのPDFを1つに結合しました');
       } catch (err) {
         console.error('Merge error:', err);
@@ -1666,11 +1880,16 @@
       toast.classList.remove('hidden');
       toast.classList.remove('translate-y-2');
 
-      setTimeout(() => {
+      // 前の通知のタイマーで新しい通知が消えないよう、毎回リセットする
+      clearTimeout(toastTimers.slide);
+      clearTimeout(toastTimers.hide);
+      toastTimers.slide = setTimeout(() => {
         toast.classList.add('translate-y-2');
-        setTimeout(() => toast.classList.add('hidden'), 200);
+        toastTimers.hide = setTimeout(() => toast.classList.add('hidden'), 200);
       }, 3500);
     }
+
+    const toastTimers = { slide: null, hide: null };
 
     function showProcessing(title, subtext) {
       document.getElementById('processingTitle').textContent = title;
