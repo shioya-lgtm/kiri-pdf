@@ -311,7 +311,7 @@
                 <span>自動生成</span>
               </button>
             </div>
-            <p class="text-[10px] text-slate-500 leading-tight">※Acrobatや各種ブラウザ・スマートフォンで開く際にパスワード認証が要求されます。出力完了時にパスワードが自動でクリップボードにコピーされます。</p>
+            <p class="text-[10px] text-slate-500 leading-tight">※Acrobatや各種ブラウザ・スマートフォンで開く際にパスワード認証が要求されます。出力完了時にパスワードをクリップボードへコピーします（ブラウザの設定によってはコピーされない場合があります）。</p>
           </div>
         </div>
 
@@ -1015,12 +1015,14 @@
       showToast('強力なパスワードを自動生成しました');
     }
 
-    function copyToClipboard(text) {
+    async function copyToClipboard(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
-      } else {
-        fallbackCopyText(text);
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (err) {}
       }
+      return fallbackCopyText(text);
     }
 
     function fallbackCopyText(text) {
@@ -1031,10 +1033,12 @@
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
+      let copied = false;
       try {
-        document.execCommand('copy');
+        copied = document.execCommand('copy');
       } catch (err) {}
       document.body.removeChild(textArea);
+      return copied;
     }
 
     async function generateWatermarkImage(pdfDoc, text) {
@@ -1244,8 +1248,10 @@
           showProcessing('パスワード暗号化中...', '端末内CPUでAES暗号化ストリームを構築中');
           try {
             pdfBytes = await encryptPdfDocument(pdfBytes, password);
-            copyToClipboard(password);
-            showToast(`🔒 暗号化完了！パスワードをコピーしました: ${password}`);
+            const copied = await copyToClipboard(password);
+            showToast(copied
+              ? '🔒 暗号化完了。パスワードをクリップボードにコピーしました'
+              : '🔒 暗号化完了。パスワードは出力設定の入力欄で確認できます');
           } catch (encryptError) {
             console.error('Password encryption failed:', encryptError);
             hideProcessing();
