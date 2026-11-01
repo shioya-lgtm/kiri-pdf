@@ -1,0 +1,12 @@
+{
+  "name": "kiri-pdf",
+  "private": true,
+  "description": "KiriPDF — Local PDF Atelier (PWA)",
+  "license": "MIT",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i css/tailwind.src.css -o css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

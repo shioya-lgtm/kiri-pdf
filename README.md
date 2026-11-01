@@ -12,10 +12,28 @@
 - **校外秘スタンプ（透かし）**: 日本語（漢字・ひらがな）に対応した鮮明な電子スタンプ。
 - **メタデータ完全消去**: 作成者や端末情報、元アプリ履歴をサニタイズ。
 
+- **アプリとしてインストール可能（PWA）**: 一度開けば、以降はオフラインでも動作します。ライブラリ・フォントはすべて同梱しており、外部CDNへの通信もありません。
+
 ## 使い方
 1. `index.html` をブラウザで直接ダブルクリックして開くか、GitHub Pages / Netlify に配置します。
 2. PDFファイルをドラッグ＆ドロップして読み込みます。
 3. 必要なページを選択し、「選択抽出」をクリックして出力設定を適用します。
+
+## アプリとしてインストール（PWA）
+1. GitHub の **Settings → Pages** で「Deploy from a branch」→ `main` / `/ (root)` を選んで保存します。
+2. 公開された `https://<ユーザー名>.github.io/kiri-pdf/` を開きます。
+3. インストールします。
+   - **Windows / Mac（Chrome・Edge）**: 画面右上の「アプリをインストール」ボタン、またはアドレスバー右端のインストールアイコン。
+   - **iPhone / iPad（Safari）**: 共有ボタン →「ホーム画面に追加」。
+   - **Android（Chrome）**: メニュー →「アプリをインストール」。
+4. 2回目以降はネット接続なしで起動できます。PCでインストールした場合、PDFの「プログラムから開く」に KiriPDF が表示されます（Chrome / Edge）。
+
+AES-256 暗号化は HTTPS 上（GitHub Pages）または直接ファイルを開いた場合に使われます。暗号化なしの `http://` で公開すると RC4 に切り替わります。
+
+## 開発メモ
+- 同梱ライブラリ: pdf-lib 1.17.1 / PDF.js 3.11.174 / @pdfsmaller/pdf-encrypt 1.2.0 / JSZip 3.10.1 / Lucide 1.58.0（`vendor/`、ライセンスは `vendor/licenses/`）
+- CSS は Tailwind CSS 3.4.17 で事前生成しています。`index.html` のクラスを変更したら `npm install && npm run build:css` で `css/tailwind.css` を再生成してください。
+- 同梱ファイルを変更して公開する際は、`sw.js` の `CACHE_VERSION` を上げてください（上げないとインストール済みの端末が旧版のまま動きます）。
 
 ## ライセンス
 MIT License (FOSS)

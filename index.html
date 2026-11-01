@@ -5,21 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KiriPDF — Local PDF Atelier</title>
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- PDF-Lib (PDF vector manipulation and assembly) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-  <!-- PDF.js (High performance vector-to-canvas rendering) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- PDF Encryption Engine (AES-256 / RC4 Standards Compliant) -->
-  <script src="https://cdn.jsdelivr.net/npm/@pdfsmaller/pdf-encrypt/dist/pdf-encrypt.umd.js"></script>
-  <!-- JSZip (In-memory zip archiving) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KiriPDF">
+
+  <!-- すべてのライブラリ・フォントは同梱（外部CDNへの通信なし） -->
+  <!-- Tailwind CSS 3.4.17 (prebuilt: npm run build:css) -->
+  <link rel="stylesheet" href="css/tailwind.css">
+  <!-- PDF-Lib 1.17.1 (PDF vector manipulation and assembly) -->
+  <script src="vendor/pdf-lib.min.js"></script>
+  <!-- PDF.js 3.11.174 (High performance vector-to-canvas rendering) -->
+  <script src="vendor/pdf.min.js"></script>
+  <!-- @pdfsmaller/pdf-encrypt 1.2.0 (AES-256 / RC4 Standards Compliant) -->
+  <script src="vendor/pdf-encrypt.umd.js"></script>
+  <!-- JSZip 3.10.1 (In-memory zip archiving) -->
+  <script src="vendor/jszip.min.js"></script>
+  <!-- Lucide Icons 1.58.0 -->
+  <script src="vendor/lucide.min.js"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('vendor/fonts/plus-jakarta-sans-latin-400-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('vendor/fonts/plus-jakarta-sans-latin-500-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('vendor/fonts/plus-jakarta-sans-latin-600-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('vendor/fonts/plus-jakarta-sans-latin-700-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('vendor/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('vendor/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('vendor/fonts/jetbrains-mono-latin-600-normal.woff2') format('woff2'); }
 
     :root {
       --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
@@ -102,6 +117,10 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <button id="installAppBtn" onclick="installApp()" class="hidden items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 active:scale-[0.98] transition-all" title="アプリとしてインストール（オフラインでも動作）">
+        <i data-lucide="monitor-down" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">アプリをインストール</span>
+      </button>
       <label for="fileInput" class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white active:scale-[0.98] transition-all shadow-xs">
         <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
         <span>PDFを追加</span>
@@ -403,7 +422,46 @@
   </div>
 
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+
+    // PWA: オフライン用キャッシュ（file:// で直接開いた場合は登録しない）
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.error('Service worker registration failed:', err));
+      });
+    }
+
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById('installAppBtn').style.display = 'inline-flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      document.getElementById('installAppBtn').style.display = 'none';
+      showToast('アプリとしてインストールしました');
+    });
+
+    // インストール済みアプリで「このアプリで開く」から渡されたPDFを読み込む
+    if ('launchQueue' in window) {
+      window.launchQueue.setConsumer(async (launchParams) => {
+        if (!launchParams.files || launchParams.files.length === 0) return;
+        const files = await Promise.all(launchParams.files.map(handle => handle.getFile()));
+        const pdfs = files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (pdfs.length > 0) handleFilesSelected(pdfs);
+      });
+    }
+
+    async function installApp() {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('installAppBtn').style.display = 'none';
+    }
 
     const state = {
       files: [],
