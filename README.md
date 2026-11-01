@@ -26,19 +26,13 @@
 3. 必要なページを出力したい順にクリックして選択し、「選択抽出」をクリックして出力設定を適用します。
 
 ## Web に公開してアプリとしてインストール（PWA）
-リポジトリが非公開（private）の場合、GitHub の無料プランでは GitHub Pages を使えません。その場合は Cloudflare Pages を使います。
+GitHub Pages で公開します（GitHub の無料プランでは、リポジトリを公開（Public）にする必要があります）。
 
-### Cloudflare Pages（非公開リポジトリのまま無料で公開）
-1. Cloudflare の無料アカウントを作成します。
-2. ダッシュボードの **Workers & Pages** から Pages のプロジェクトを作成し、「Git に接続」で GitHub と連携して `kiri-pdf` リポジトリを選びます。
-3. ビルド設定は、フレームワーク: なし、ビルドコマンド: 空欄、出力ディレクトリ: `/` にして保存します。
-4. 発行された `https://<プロジェクト名>.pages.dev` を開きます。以後 `main` にプッシュすると自動で更新されます。
+1. リポジトリの **Settings → General** の最下部「Danger Zone」→「Change repository visibility」で **Public** にします。
+2. **Settings → Pages** で「Deploy from a branch」→ `main` / `/ (root)` を選んで保存します。
+3. 数分後に `https://<ユーザー名>.github.io/kiri-pdf/` を開きます。以後 `main` にプッシュすると自動で更新されます。
 
-※ 公開されたURLは誰でも開けます。利用者を限定したい場合は Cloudflare Access を設定してください。
-※ Cloudflare の画面構成は変更されることがあります。
-
-### GitHub Pages（公開リポジトリ、または有料プランの場合）
-GitHub の **Settings → Pages** で「Deploy from a branch」→ `main` / `/ (root)` を選んで保存し、`https://<ユーザー名>.github.io/kiri-pdf/` を開きます。
+※ 公開されるのはツールのコードだけです。利用者が読み込むPDFは端末の外に送信されません。
 
 ### インストール
 - **Windows / Mac（Chrome・Edge）**: 画面右上の「アプリをインストール」ボタン、またはアドレスバー右端のインストールアイコン。
