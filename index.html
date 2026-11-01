@@ -173,7 +173,7 @@
       </aside>
 
       <div class="flex-1 flex flex-col overflow-hidden min-w-0 atelier-canvas">
-        <div class="h-12 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between flex-shrink-0 text-xs gap-3">
+        <div class="min-h-12 py-2 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-4 sm:px-6 flex flex-wrap items-center justify-between flex-shrink-0 text-xs gap-x-3 gap-y-2 whitespace-nowrap">
           <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             <button onclick="selectCurrentScope(true)" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">全選択</button>
             <button onclick="selectCurrentScope(false)" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">解除</button>
@@ -182,12 +182,18 @@
             <button onclick="selectOddEvenScope('even')" class="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md text-[11px] font-medium transition-all">偶数</button>
           </div>
 
-          <div class="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <div class="hidden lg:flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
               <i data-lucide="minus" class="w-3 h-3 text-slate-400"></i>
               <input type="range" id="zoomSlider" min="2" max="6" value="4" class="w-14 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" title="プレビューサイズ調整">
               <i data-lucide="plus" class="w-3 h-3 text-slate-400"></i>
             </div>
+
+            <button onclick="rotateSelectedPages()" title="選択したページを右に90°回転"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium rounded-lg shadow-2xs active:scale-[0.98] transition-all">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span class="hidden sm:inline">回転</span>
+            </button>
 
             <button onclick="splitAllPagesToZip()" title="全ページを1枚ずつのPDFに分割してZIP保存"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium rounded-lg shadow-2xs active:scale-[0.98] transition-all">
@@ -226,6 +232,10 @@
         </div>
 
         <div class="flex items-center gap-2">
+          <button onclick="rotateQuickLookPage()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all" title="右に90°回転 (R)">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">回転</span>
+          </button>
           <button id="qlSelectToggleBtn" onclick="toggleQuickLookSelection()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all">
             <i data-lucide="check" class="w-3.5 h-3.5"></i>
             <span id="qlSelectToggleText">選択する</span>
@@ -251,6 +261,7 @@
         <div class="text-slate-400 text-[11px] hidden sm:flex items-center gap-3">
           <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">→</kbd> ページ移動</span>
           <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">Space</kbd> 選択切替</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">R</kbd> 回転</span>
           <span><kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px]">Esc</kbd> 閉じる</span>
         </div>
 
@@ -288,6 +299,15 @@
           </div>
         </div>
 
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="block font-semibold text-slate-700">出力順</span>
+            <button type="button" onclick="resetExportOrder()" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">ファイル順に並べ直す</button>
+          </div>
+          <div id="exportOrderList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-1 bg-slate-50 border border-slate-200 rounded-lg"></div>
+          <p class="text-[10px] text-slate-400 mt-1 leading-tight">選択した順に出力されます。ドラッグ、または ▲▼ で並べ替えできます。</p>
+        </div>
+
         <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2.5">
           <div class="flex items-center justify-between">
             <label for="enablePassword" class="flex items-center gap-2 cursor-pointer">
@@ -311,7 +331,7 @@
                 <span>自動生成</span>
               </button>
             </div>
-            <p class="text-[10px] text-slate-500 leading-tight">※Acrobatや各種ブラウザ・スマートフォンで開く際にパスワード認証が要求されます。出力完了時にパスワードをクリップボードへコピーします（ブラウザの設定によってはコピーされない場合があります）。</p>
+            <p class="text-[10px] text-slate-500 leading-tight">※Acrobatや各種ブラウザ・スマートフォンで開く際にパスワード認証が要求されます。出力完了時にパスワードをクリップボードへコピーします（ブラウザの設定によってはコピーされない場合があります）。印刷・文字のコピーは許可、編集は禁止の設定で出力します。</p>
           </div>
         </div>
 
@@ -319,8 +339,8 @@
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="wipeMetadata" checked class="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5">
             <div>
-              <span class="text-slate-700 font-medium">メタデータを完全消去</span>
-              <span class="text-[10px] text-slate-400 block">作成者・PC名・元アプリ履歴を削除して流出防止</span>
+              <span class="text-slate-700 font-medium">メタデータを消去</span>
+              <span class="text-[10px] text-slate-400 block">タイトル・作成者・作成アプリを空にします。オフにすると1ページ目の元PDFの情報を引き継ぎます</span>
             </div>
           </label>
         </div>
@@ -375,6 +395,7 @@
               </div>
             </div>
             <p class="text-[10px] text-slate-400 leading-tight">※比率を維持したまま中央配置されます。「すべて縦向き」を選ぶと、横向きのスライドや表も縦向き用紙の中央に綺麗に収まり、印刷・綴じ方向が揃います。</p>
+            <p class="text-[10px] text-amber-700 leading-tight">※この設定では、リンク・フォーム入力欄・注釈（コメント）は保持されません。</p>
           </div>
         </div>
 
@@ -467,7 +488,9 @@
       files: [],
       activeFileId: 'all',
       zoomLevel: 4,
-      quickLook: { isOpen: false, fileIndex: 0, pageIndex: 0 }
+      // 選択した順番（= 出力順）。要素は pageKey(fileId, pageIndex)
+      selectionOrder: [],
+      quickLook: { isOpen: false, fileIndex: 0, pageIndex: 0, renderTask: null }
     };
 
     let pageObserver = null;
@@ -507,7 +530,7 @@
       });
 
       window.addEventListener('drop', (e) => {
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
         if (files.length > 0) handleFilesSelected(files);
       });
 
@@ -520,6 +543,7 @@
 
     async function handleFilesSelected(files) {
       showProcessing('PDFを解析中...', 'サムネイルを生成しています');
+      const restrictedNames = [];
 
       for (const file of files) {
         try {
@@ -527,14 +551,24 @@
           const rawBytes = new Uint8Array(arrayBuffer.slice(0));
           const pdfJsWorkerBytes = new Uint8Array(arrayBuffer.slice(0));
 
-          const pdfDocProxy = await pdfjsLib.getDocument({ data: pdfJsWorkerBytes }).promise;
+          const pdfDocProxy = await pdfjsLib.getDocument({
+            data: pdfJsWorkerBytes,
+            // 日本語など、フォント未埋め込みPDFの文字表示用
+            cMapUrl: new URL('vendor/cmaps/', location.href).href,
+            cMapPacked: true
+          }).promise;
           const pageCount = pdfDocProxy.numPages;
+
+          // 開くのにパスワード不要でも暗号化（編集制限）されているPDFは pdf-lib で再構成できない
+          const metadata = await pdfDocProxy.getMetadata().catch(() => null);
+          const isRestricted = !!(metadata && metadata.info && metadata.info.EncryptFilterName);
+          if (isRestricted) restrictedNames.push(file.name);
 
           const fileId = 'f_' + Math.random().toString(36).substring(2, 9);
           const pages = [];
 
           for (let i = 0; i < pageCount; i++) {
-            pages.push({ index: i, isSelected: false, thumbUrl: null });
+            pages.push({ index: i, isSelected: false, rotation: 0, thumbUrl: null, thumbRotation: null });
           }
 
           state.files.push({
@@ -545,6 +579,7 @@
             pageCount: pageCount,
             pdfDocProxy: pdfDocProxy,
             rawBytes: rawBytes,
+            isRestricted: isRestricted,
             pages: pages
           });
 
@@ -564,6 +599,27 @@
       renderSidebarTabs();
       renderPagesGrid();
       updateSelectedCounts();
+
+      if (restrictedNames.length > 0) {
+        showToast(`"${restrictedNames.join('", "')}" は編集制限付きのため閲覧のみ可能です（出力には使えません）`, true);
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    function pageKey(fileId, pageIndex) {
+      return `${fileId}:${pageIndex}`;
+    }
+
+    function parsePageKey(key) {
+      const sep = key.lastIndexOf(':');
+      return { fileId: key.slice(0, sep), pageIndex: parseInt(key.slice(sep + 1)) };
+    }
+
+    function normalizeRotation(angle) {
+      return ((Math.round(angle / 90) * 90) % 360 + 360) % 360;
     }
 
     function updateLayoutVisibility() {
@@ -578,9 +634,15 @@
     }
 
     function clearAllFiles() {
+      state.files.forEach(f => f.pdfDocProxy.destroy());
       state.files = [];
+      state.selectionOrder = [];
       state.activeFileId = 'all';
+      closeQuickLook();
       updateLayoutVisibility();
+      renderSidebarTabs();
+      renderPagesGrid();
+      updateSelectedCounts();
       showToast('すべてのファイルをクリアしました');
     }
 
@@ -595,13 +657,9 @@
         allBtn.className = `w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
           isAllActive ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
         }`;
-        allBtn.onclick = () => {
-          state.activeFileId = 'all';
-          renderSidebarTabs();
-          renderPagesGrid();
-        };
+        allBtn.onclick = () => setActiveFile('all');
 
-        const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+        const totalSelected = state.selectionOrder.length;
         const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
 
         allBtn.innerHTML = `
@@ -619,6 +677,7 @@
       state.files.forEach((file) => {
         const isActive = state.activeFileId === file.id;
         const selectedCount = file.pages.filter(p => p.isSelected).length;
+        const safeName = escapeHtml(file.name);
 
         const tab = document.createElement('div');
         tab.className = `group relative rounded-xl transition-all ${
@@ -629,13 +688,14 @@
           <div class="px-3 py-2 flex items-center justify-between cursor-pointer" onclick="setActiveFile('${file.id}')">
             <div class="flex items-center gap-2 truncate min-w-0 pr-1">
               <i data-lucide="file-text" class="w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}"></i>
-              <span class="truncate text-xs font-medium" title="${file.name}">${file.name}</span>
+              <span class="truncate text-xs font-medium" title="${safeName}">${safeName}</span>
+              ${file.isRestricted ? '<span title="編集制限付き（閲覧のみ・出力不可）" class="flex-shrink-0 text-amber-500"><i data-lucide="lock" class="w-3 h-3"></i></span>' : ''}
             </div>
             <div class="flex items-center gap-1.5 flex-shrink-0">
               <span class="font-mono text-[10px] px-1.5 py-0.5 rounded-md ${
                 isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
               }">${selectedCount}/${file.pageCount}</span>
-              <button onclick="event.stopPropagation(); removeFile('${file.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 rounded transition-opacity" title="ファイルを削除">
+              <button onclick="event.stopPropagation(); removeFile('${file.id}')" class="opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 p-1 hover:text-rose-500 rounded transition-opacity" title="ファイルを削除">
                 <i data-lucide="x" class="w-3 h-3"></i>
               </button>
             </div>
@@ -654,9 +714,14 @@
     }
 
     function removeFile(fileId) {
+      const target = state.files.find(f => f.id === fileId);
+      if (target) target.pdfDocProxy.destroy();
+      closeQuickLook();
+
       state.files = state.files.filter(f => f.id !== fileId);
+      state.selectionOrder = state.selectionOrder.filter(k => parsePageKey(k).fileId !== fileId);
       if (state.activeFileId === fileId) {
-        state.activeFileId = state.files.length > 0 ? state.files[0].id : 'all';
+        state.activeFileId = state.files.length > 1 ? 'all' : (state.files[0]?.id || 'all');
       }
       updateLayoutVisibility();
       renderSidebarTabs();
@@ -689,11 +754,11 @@
           const secHeader = document.createElement('div');
           secHeader.className = 'flex items-center justify-between mt-2 mb-3 pt-2 border-t border-slate-200/60 first:border-0 first:mt-0';
           secHeader.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-xs text-slate-800">${file.name}</span>
-              <span class="text-[10px] text-slate-400 font-mono">(${file.pageCount} pages)</span>
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="font-bold text-xs text-slate-800 truncate">${escapeHtml(file.name)}</span>
+              <span class="text-[10px] text-slate-400 font-mono flex-shrink-0">(${file.pageCount} pages)</span>
             </div>
-            <button onclick="selectFilePages('${file.id}', true)" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium">このファイルを全選択</button>
+            <button onclick="selectFilePages('${file.id}', true)" class="text-[11px] text-slate-500 hover:text-slate-900 font-medium flex-shrink-0">このファイルを全選択</button>
           `;
           container.appendChild(secHeader);
         }
@@ -703,41 +768,41 @@
 
         file.pages.forEach((page) => {
           const card = document.createElement('div');
-          card.className = `paper-card relative bg-white rounded-xl border border-slate-200 cursor-pointer overflow-hidden flex flex-col group ${
-            page.isSelected ? 'is-selected ring-2 ring-slate-900' : 'opacity-85 hover:opacity-100'
-          }`;
+          card.className = 'paper-card relative bg-white rounded-xl border border-slate-200 cursor-pointer overflow-hidden flex flex-col group';
           card.dataset.fileId = file.id;
           card.dataset.pageIndex = page.index;
 
           card.onclick = () => togglePageSelection(file.id, page.index);
 
           card.innerHTML = `
-            <div class="w-full aspect-[1/1.414] bg-slate-100 flex items-center justify-center overflow-hidden relative">
+            <div class="thumb-box w-full aspect-[1/1.414] bg-slate-100 flex items-center justify-center overflow-hidden relative">
               <div class="thumb-loader absolute inset-0 flex items-center justify-center text-slate-400">
                 <div class="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
               </div>
-              <canvas class="thumb-canvas w-full h-full object-contain hidden"></canvas>
 
-              <button onclick="event.stopPropagation(); openQuickLook('${file.id}', ${page.index})"
-                      class="absolute right-2 bottom-2 p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 text-white backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-all shadow-xs z-10"
-                      title="ページを大きく拡大プレビュー">
-                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
-              </button>
+              <div class="absolute right-2 bottom-2 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-all">
+                <button onclick="event.stopPropagation(); rotatePage('${file.id}', ${page.index})"
+                        class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 text-white backdrop-blur-xs shadow-xs"
+                        title="右に90°回転">
+                  <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="event.stopPropagation(); openQuickLook('${file.id}', ${page.index})"
+                        class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 text-white backdrop-blur-xs shadow-xs"
+                        title="ページを大きく拡大プレビュー">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
 
               <div class="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-10">
                 <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-white/90 text-slate-700 shadow-2xs backdrop-blur-xs">
                   P. ${page.index + 1}
                 </span>
-
-                <div class="w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-                  page.isSelected ? 'bg-slate-900 text-white shadow-2xs scale-105' : 'bg-white/80 border border-slate-300 text-transparent'
-                }">
-                  <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
-                </div>
+                <div class="sel-badge"></div>
               </div>
             </div>
           `;
 
+          applySelectionStyle(card, file, page);
           grid.appendChild(card);
 
           if (pageObserver) {
@@ -753,108 +818,157 @@
       lucide.createIcons({ root: container });
     }
 
+    // 選択状態の見た目と、出力順の番号バッジを反映
+    function applySelectionStyle(card, file, page) {
+      const order = page.isSelected ? state.selectionOrder.indexOf(pageKey(file.id, page.index)) + 1 : 0;
+      card.classList.toggle('is-selected', page.isSelected);
+      card.classList.toggle('ring-2', page.isSelected);
+      card.classList.toggle('ring-slate-900', page.isSelected);
+      card.classList.toggle('opacity-85', !page.isSelected);
+      card.classList.toggle('hover:opacity-100', !page.isSelected);
+
+      const badge = card.querySelector('.sel-badge');
+      if (!badge) return;
+      badge.className = page.isSelected
+        ? 'sel-badge min-w-[1.25rem] h-5 px-1 rounded-md flex items-center justify-center text-[10px] font-mono font-bold bg-slate-900 text-white shadow-2xs'
+        : 'sel-badge min-w-[1.25rem] h-5 px-1 rounded-md bg-white/80 border border-slate-300';
+      badge.textContent = order ? String(order) : '';
+      badge.title = order ? `出力順: ${order}` : '';
+    }
+
+    function refreshSelectionBadges() {
+      document.querySelectorAll('.paper-card').forEach(card => {
+        const file = state.files.find(f => f.id === card.dataset.fileId);
+        if (!file) return;
+        applySelectionStyle(card, file, file.pages[parseInt(card.dataset.pageIndex)]);
+      });
+    }
+
     async function loadCardThumbnail(card, fileId, pageIndex) {
       const file = state.files.find(f => f.id === fileId);
       if (!file) return;
 
       const pageData = file.pages[pageIndex];
-      const canvas = card.querySelector('.thumb-canvas');
+      const box = card.querySelector('.thumb-box');
       const loader = card.querySelector('.thumb-loader');
 
-      if (pageData.thumbUrl) {
-        const img = new Image();
-        img.src = pageData.thumbUrl;
-        img.className = 'w-full h-full object-contain';
-        if (loader) loader.remove();
-        if (canvas) canvas.replaceWith(img);
-        return;
-      }
-
       try {
-        const pdfPage = await file.pdfDocProxy.getPage(pageIndex + 1);
-        const viewport = pdfPage.getViewport({ scale: 0.4 });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        if (!pageData.thumbUrl || pageData.thumbRotation !== pageData.rotation) {
+          const rotation = pageData.rotation;
+          const pdfPage = await file.pdfDocProxy.getPage(pageIndex + 1);
+          const viewport = pdfPage.getViewport({ scale: 0.4, rotation: normalizeRotation(pdfPage.rotate + rotation) });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
 
-        await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
+          await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-        pageData.thumbUrl = canvas.toDataURL('image/jpeg', 0.7);
-        canvas.classList.remove('hidden');
+          // 描画中にさらに回転された場合は、後続の呼び出しに任せる
+          if (rotation !== pageData.rotation) return;
+          pageData.thumbUrl = canvas.toDataURL('image/jpeg', 0.7);
+          pageData.thumbRotation = rotation;
+        }
+
+        let img = box.querySelector('.thumb-img');
+        if (!img) {
+          img = new Image();
+          img.className = 'thumb-img w-full h-full object-contain';
+          img.alt = `P. ${pageIndex + 1}`;
+          box.prepend(img);
+        }
+        img.src = pageData.thumbUrl;
         if (loader) loader.classList.add('hidden');
       } catch (err) {
         console.error('Thumbnail render error:', err);
       }
     }
 
+    function rotatePage(fileId, pageIndex) {
+      const file = state.files.find(f => f.id === fileId);
+      if (!file) return;
+      const page = file.pages[pageIndex];
+      page.rotation = normalizeRotation(page.rotation + 90);
+
+      const card = document.querySelector(`.paper-card[data-file-id="${fileId}"][data-page-index="${pageIndex}"]`);
+      if (card) loadCardThumbnail(card, fileId, pageIndex);
+
+      const ql = state.quickLook;
+      if (ql.isOpen && state.files[ql.fileIndex]?.id === fileId && ql.pageIndex === pageIndex) {
+        renderQuickLookPage();
+      }
+    }
+
+    function rotateSelectedPages() {
+      if (state.selectionOrder.length === 0) {
+        showToast('回転するページを選択してください', true);
+        return;
+      }
+      state.selectionOrder.forEach(key => {
+        const { fileId, pageIndex } = parsePageKey(key);
+        rotatePage(fileId, pageIndex);
+      });
+      showToast(`${state.selectionOrder.length} ページを右に90°回転しました`);
+    }
+
+    function setPageSelected(file, page, selected) {
+      if (page.isSelected === selected) return;
+      page.isSelected = selected;
+      const key = pageKey(file.id, page.index);
+      if (selected) {
+        state.selectionOrder.push(key);
+      } else {
+        state.selectionOrder = state.selectionOrder.filter(k => k !== key);
+      }
+    }
+
+    function afterSelectionChange() {
+      refreshSelectionBadges();
+      renderSidebarTabs();
+      updateSelectedCounts();
+    }
+
     function togglePageSelection(fileId, pageIndex) {
       const file = state.files.find(f => f.id === fileId);
       if (!file) return;
-
       const page = file.pages[pageIndex];
-      page.isSelected = !page.isSelected;
+      setPageSelected(file, page, !page.isSelected);
+      afterSelectionChange();
+    }
 
-      const card = document.querySelector(`.paper-card[data-file-id="${fileId}"][data-page-index="${pageIndex}"]`);
-      if (card) {
-        if (page.isSelected) {
-          card.classList.add('is-selected', 'ring-2', 'ring-slate-900');
-          card.classList.remove('opacity-85');
-          const chk = card.querySelector('.w-5.h-5');
-          if (chk) chk.className = 'w-5 h-5 rounded-md flex items-center justify-center transition-all bg-slate-900 text-white shadow-2xs scale-105';
-        } else {
-          card.classList.remove('is-selected', 'ring-2', 'ring-slate-900');
-          card.classList.add('opacity-85');
-          const chk = card.querySelector('.w-5.h-5');
-          if (chk) chk.className = 'w-5 h-5 rounded-md flex items-center justify-center transition-all bg-white/80 border border-slate-300 text-transparent';
-        }
-      }
-
-      updateSelectedCounts();
-      renderSidebarTabs();
+    function getScopeFiles() {
+      return state.activeFileId === 'all'
+        ? state.files
+        : state.files.filter(f => f.id === state.activeFileId);
     }
 
     function selectCurrentScope(selectState) {
-      const targetFiles = state.activeFileId === 'all'
-        ? state.files
-        : state.files.filter(f => f.id === state.activeFileId);
-
-      targetFiles.forEach(file => {
-        file.pages.forEach(p => p.isSelected = selectState);
+      getScopeFiles().forEach(file => {
+        file.pages.forEach(p => setPageSelected(file, p, selectState));
       });
-
-      renderPagesGrid();
-      renderSidebarTabs();
-      updateSelectedCounts();
+      afterSelectionChange();
     }
 
     function selectOddEvenScope(type) {
-      const targetFiles = state.activeFileId === 'all'
-        ? state.files
-        : state.files.filter(f => f.id === state.activeFileId);
-
-      targetFiles.forEach(file => {
+      getScopeFiles().forEach(file => {
+        file.pages.forEach(p => setPageSelected(file, p, false));
         file.pages.forEach(p => {
           const isOdd = (p.index + 1) % 2 !== 0;
-          p.isSelected = (type === 'odd') ? isOdd : !isOdd;
+          setPageSelected(file, p, (type === 'odd') ? isOdd : !isOdd);
         });
       });
-
-      renderPagesGrid();
-      renderSidebarTabs();
-      updateSelectedCounts();
+      afterSelectionChange();
     }
 
     function selectFilePages(fileId, selectState) {
       const file = state.files.find(f => f.id === fileId);
       if (!file) return;
-      file.pages.forEach(p => p.isSelected = selectState);
-      renderPagesGrid();
-      renderSidebarTabs();
-      updateSelectedCounts();
+      file.pages.forEach(p => setPageSelected(file, p, selectState));
+      afterSelectionChange();
     }
 
     function updateSelectedCounts() {
-      const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+      const totalSelected = state.selectionOrder.length;
       const totalPages = state.files.reduce((acc, f) => acc + f.pageCount, 0);
 
       document.getElementById('selectedCountBadge').textContent = totalSelected;
@@ -878,6 +992,7 @@
 
     function closeQuickLook() {
       state.quickLook.isOpen = false;
+      if (state.quickLook.renderTask) state.quickLook.renderTask.cancel();
       document.getElementById('quickLookModal').classList.add('hidden');
     }
 
@@ -906,17 +1021,25 @@
       const canvas = document.getElementById('qlCanvas');
       loading.classList.remove('hidden');
 
+      // 同じ canvas への描画が重ならないよう、前の描画を止める
+      if (state.quickLook.renderTask) state.quickLook.renderTask.cancel();
+
       try {
         const pdfPage = await file.pdfDocProxy.getPage(pageIdx + 1);
-        const viewport = pdfPage.getViewport({ scale: 1.5 });
+        const viewport = pdfPage.getViewport({ scale: 1.5, rotation: normalizeRotation(pdfPage.rotate + pageData.rotation) });
+        if (state.quickLook.renderTask) state.quickLook.renderTask.cancel();
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext('2d');
-        await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
+        const task = pdfPage.render({ canvasContext: ctx, viewport: viewport });
+        state.quickLook.renderTask = task;
+        await task.promise;
+        if (state.quickLook.renderTask === task) state.quickLook.renderTask = null;
       } catch (err) {
+        if (err && err.name === 'RenderingCancelledException') return;
         console.error('Quick look render error:', err);
       } finally {
-        loading.classList.add('hidden');
+        if (!state.quickLook.renderTask) loading.classList.add('hidden');
       }
     }
 
@@ -925,6 +1048,12 @@
       if (!file) return;
       togglePageSelection(file.id, state.quickLook.pageIndex);
       renderQuickLookPage();
+    }
+
+    function rotateQuickLookPage() {
+      const file = state.files[state.quickLook.fileIndex];
+      if (!file) return;
+      rotatePage(file.id, state.quickLook.pageIndex);
     }
 
     function navigateQuickLook(delta) {
@@ -943,6 +1072,7 @@
         if (e.key === 'Escape') closeQuickLook();
         if (e.key === 'ArrowLeft') navigateQuickLook(-1);
         if (e.key === 'ArrowRight') navigateQuickLook(1);
+        if (e.key === 'r' || e.key === 'R') rotateQuickLookPage();
         if (e.key === ' ' || e.code === 'Space') {
           e.preventDefault();
           toggleQuickLookSelection();
@@ -950,21 +1080,108 @@
       });
     }
 
+    function findRestrictedFiles(fileIds) {
+      return state.files.filter(f => f.isRestricted && fileIds.includes(f.id));
+    }
+
     function openExportSettingsModal() {
-      const totalSelected = state.files.reduce((acc, f) => acc + f.pages.filter(p => p.isSelected).length, 0);
+      const totalSelected = state.selectionOrder.length;
       if (totalSelected === 0) {
         showToast('抽出するページを1枚以上選択してください', true);
+        return;
+      }
+
+      const restricted = findRestrictedFiles(state.selectionOrder.map(k => parsePageKey(k).fileId));
+      if (restricted.length > 0) {
+        showToast(`"${restricted.map(f => f.name).join('", "')}" は編集制限付きのため出力できません。選択を解除してください`, true);
         return;
       }
 
       document.getElementById('exportSummaryCount').textContent = `抽出対象: 計 ${totalSelected} ページ`;
       const firstName = state.files[0]?.name.replace(/\.[^/.]+$/, "") || "Document";
       document.getElementById('exportFileName').value = `${firstName}_extracted`;
+      renderExportOrderList();
       document.getElementById('exportModal').classList.remove('hidden');
     }
 
     function closeExportSettingsModal() {
       document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    function renderExportOrderList() {
+      const list = document.getElementById('exportOrderList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      state.selectionOrder.forEach((key, idx) => {
+        const { fileId, pageIndex } = parsePageKey(key);
+        const file = state.files.find(f => f.id === fileId);
+        if (!file) return;
+        const page = file.pages[pageIndex];
+        const isLast = idx === state.selectionOrder.length - 1;
+
+        const row = document.createElement('div');
+        row.className = 'export-order-row flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-lg cursor-grab';
+        row.draggable = true;
+        row.dataset.index = idx;
+        row.innerHTML = `
+          <i data-lucide="grip-vertical" class="w-3 h-3 text-slate-300 flex-shrink-0"></i>
+          <span class="font-mono text-[10px] text-slate-400 w-5 text-right flex-shrink-0">${idx + 1}</span>
+          <div class="w-6 h-8 bg-slate-100 rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
+            ${page.thumbUrl ? `<img src="${page.thumbUrl}" alt="" class="w-full h-full object-contain">` : ''}
+          </div>
+          <span class="flex-1 min-w-0 truncate text-[11px] text-slate-700" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+          <span class="font-mono text-[10px] text-slate-500 flex-shrink-0">P. ${pageIndex + 1}${page.rotation ? ` ↻${page.rotation}°` : ''}</span>
+          <button type="button" onclick="moveExportItem(${idx}, ${idx - 1})" ${idx === 0 ? 'disabled' : ''} class="p-0.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none" title="上へ">
+            <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+          </button>
+          <button type="button" onclick="moveExportItem(${idx}, ${idx + 1})" ${isLast ? 'disabled' : ''} class="p-0.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none" title="下へ">
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+
+        row.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', String(idx));
+          e.dataTransfer.effectAllowed = 'move';
+          row.classList.add('opacity-50');
+        });
+        row.addEventListener('dragend', () => row.classList.remove('opacity-50'));
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          row.classList.add('ring-2', 'ring-slate-900');
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('ring-2', 'ring-slate-900'));
+        row.addEventListener('drop', (e) => {
+          e.preventDefault();
+          row.classList.remove('ring-2', 'ring-slate-900');
+          const from = parseInt(e.dataTransfer.getData('text/plain'));
+          if (!Number.isNaN(from)) moveExportItem(from, idx);
+        });
+
+        list.appendChild(row);
+      });
+
+      lucide.createIcons({ root: list });
+    }
+
+    function moveExportItem(from, to) {
+      const order = state.selectionOrder;
+      if (from === to || from < 0 || to < 0 || from >= order.length || to >= order.length) return;
+      const [item] = order.splice(from, 1);
+      order.splice(to, 0, item);
+      renderExportOrderList();
+      refreshSelectionBadges();
+    }
+
+    function resetExportOrder() {
+      const fileRank = new Map(state.files.map((f, i) => [f.id, i]));
+      state.selectionOrder.sort((a, b) => {
+        const pa = parsePageKey(a);
+        const pb = parsePageKey(b);
+        return (fileRank.get(pa.fileId) - fileRank.get(pb.fileId)) || (pa.pageIndex - pb.pageIndex);
+      });
+      renderExportOrderList();
+      refreshSelectionBadges();
     }
 
     function togglePasswordInput() {
@@ -1002,15 +1219,19 @@
       lucide.createIcons({ root: icon.parentElement });
     }
 
-    function generateAutoPassword() {
+    function randomPassword(length) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
-      const array = new Uint32Array(12);
+      const array = new Uint32Array(length);
       window.crypto.getRandomValues(array);
       let pwd = '';
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < length; i++) {
         pwd += chars[array[i] % chars.length];
       }
-      document.getElementById('pdfPassword').value = pwd;
+      return pwd;
+    }
+
+    function generateAutoPassword() {
+      document.getElementById('pdfPassword').value = randomPassword(12);
       document.getElementById('pdfPassword').type = 'text';
       showToast('強力なパスワードを自動生成しました');
     }
@@ -1084,6 +1305,54 @@
       return await pdfDoc.embedPng(bytes);
     }
 
+    class RestrictedPdfError extends Error {
+      constructor(fileName) {
+        super(`"${fileName}" は編集制限付きのため出力に使えません`);
+        this.name = 'RestrictedPdfError';
+      }
+    }
+
+    // 元PDFを pdf-lib で読み込む（同じファイルは cache で使い回す）
+    async function loadSourceDoc(file, cache) {
+      if (cache && cache.has(file.id)) return cache.get(file.id);
+      if (file.isRestricted) throw new RestrictedPdfError(file.name);
+
+      let bytes = file.rawBytes;
+      if (!bytes || bytes.byteLength === 0) {
+        const freshBuffer = await file.fileRef.arrayBuffer();
+        file.rawBytes = new Uint8Array(freshBuffer.slice(0));
+        bytes = file.rawBytes;
+      }
+
+      let doc;
+      try {
+        doc = await PDFLib.PDFDocument.load(bytes.slice(0), { updateMetadata: false });
+      } catch (err) {
+        if (/encrypt/i.test(err && err.message || '')) throw new RestrictedPdfError(file.name);
+        throw err;
+      }
+      if (cache) cache.set(file.id, doc);
+      return doc;
+    }
+
+    // ページの回転（/Rotate）を考慮し、見た目どおりの座標で描画するための座標変換
+    function visualFrame(page) {
+      const box = page.getCropBox();
+      const r = normalizeRotation(page.getRotation().angle);
+      const swap = r === 90 || r === 270;
+      return {
+        width: swap ? box.height : box.width,
+        height: swap ? box.width : box.height,
+        rotate: PDFLib.degrees(r),
+        map(vx, vy) {
+          if (r === 90) return { x: box.x + box.width - vy, y: box.y + vx };
+          if (r === 180) return { x: box.x + box.width - vx, y: box.y + box.height - vy };
+          if (r === 270) return { x: box.x + vy, y: box.y + box.height - vx };
+          return { x: box.x + vx, y: box.y + vy };
+        }
+      };
+    }
+
     async function executeExportWithSettings() {
       closeExportSettingsModal();
       showProcessing('PDFを出力中...', 'セキュリティ設定と加工を適用しています');
@@ -1106,7 +1375,7 @@
       }
 
       try {
-        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+        const { PDFDocument, rgb, StandardFonts, degrees } = PDFLib;
         const outDoc = await PDFDocument.create();
 
         const sizeDict = {
@@ -1116,39 +1385,23 @@
           'B4': [728.50, 1031.81],
           'Letter': [612.00, 792.00]
         };
-
-        const selectedList = [];
-        state.files.forEach(f => {
-          f.pages.forEach(p => {
-            if (p.isSelected) {
-              selectedList.push({ fileId: f.id, pageIndex: p.index });
-            }
-          });
-        });
+        const [stdW, stdH] = sizeDict[targetSizeName] || sizeDict['A4'];
 
         const loadedDocs = new Map();
 
-        if (enableResize) {
-          const [stdW, stdH] = sizeDict[targetSizeName] || sizeDict['A4'];
+        for (const key of state.selectionOrder) {
+          const { fileId, pageIndex } = parsePageKey(key);
+          const srcFile = state.files.find(f => f.id === fileId);
+          const srcDoc = await loadSourceDoc(srcFile, loadedDocs);
+          const srcPage = srcDoc.getPage(pageIndex);
+          const totalRotation = normalizeRotation(srcPage.getRotation().angle + srcFile.pages[pageIndex].rotation);
 
-          for (const item of selectedList) {
-            if (!loadedDocs.has(item.fileId)) {
-              const srcFile = state.files.find(f => f.id === item.fileId);
-              let bytes = srcFile.rawBytes;
-              if (!bytes || bytes.byteLength === 0) {
-                const freshBuffer = await srcFile.fileRef.arrayBuffer();
-                srcFile.rawBytes = new Uint8Array(freshBuffer.slice(0));
-                bytes = srcFile.rawBytes;
-              }
-              const srcDoc = await PDFDocument.load(bytes.slice(0));
-              loadedDocs.set(item.fileId, srcDoc);
-            }
-            const srcDoc = loadedDocs.get(item.fileId);
-
-            const srcPage = srcDoc.getPage(item.pageIndex);
+          if (enableResize) {
             const embeddedPage = await outDoc.embedPage(srcPage);
-            const srcSize = srcPage.getSize();
-            const isLandscape = srcSize.width > srcSize.height;
+            const swap = totalRotation === 90 || totalRotation === 270;
+            const visW = swap ? embeddedPage.height : embeddedPage.width;
+            const visH = swap ? embeddedPage.width : embeddedPage.height;
+            const isLandscape = visW > visH;
 
             let canvasW, canvasH;
             if (targetOrientation === 'portrait') {
@@ -1165,36 +1418,27 @@
             const margin = 14;
             const availW = canvasW - margin * 2;
             const availH = canvasH - margin * 2;
-            const scale = Math.min(availW / srcSize.width, availH / srcSize.height);
+            const scale = Math.min(availW / visW, availH / visH);
 
-            const scaledW = srcSize.width * scale;
-            const scaledH = srcSize.height * scale;
-            const posX = (canvasW - scaledW) / 2;
-            const posY = (canvasH - scaledH) / 2;
+            const posX = (canvasW - visW * scale) / 2;
+            const posY = (canvasH - visH * scale) / 2;
+
+            // 時計回りの回転を、原点の移動 + 逆回転で再現する
+            const w = embeddedPage.width * scale;
+            const h = embeddedPage.height * scale;
+            const offset = { 0: [0, 0], 90: [0, w], 180: [w, h], 270: [h, 0] }[totalRotation];
 
             const newPage = outDoc.addPage([canvasW, canvasH]);
             newPage.drawPage(embeddedPage, {
-              x: posX,
-              y: posY,
+              x: posX + offset[0],
+              y: posY + offset[1],
               xScale: scale,
-              yScale: scale
+              yScale: scale,
+              rotate: degrees(-totalRotation)
             });
-          }
-        } else {
-          for (const item of selectedList) {
-            if (!loadedDocs.has(item.fileId)) {
-              const srcFile = state.files.find(f => f.id === item.fileId);
-              let bytes = srcFile.rawBytes;
-              if (!bytes || bytes.byteLength === 0) {
-                const freshBuffer = await srcFile.fileRef.arrayBuffer();
-                srcFile.rawBytes = new Uint8Array(freshBuffer.slice(0));
-                bytes = srcFile.rawBytes;
-              }
-              const srcDoc = await PDFDocument.load(bytes.slice(0));
-              loadedDocs.set(item.fileId, srcDoc);
-            }
-            const srcDoc = loadedDocs.get(item.fileId);
-            const [copiedPage] = await outDoc.copyPages(srcDoc, [item.pageIndex]);
+          } else {
+            const [copiedPage] = await outDoc.copyPages(srcDoc, [pageIndex]);
+            copiedPage.setRotation(degrees(totalRotation));
             outDoc.addPage(copiedPage);
           }
         }
@@ -1206,29 +1450,33 @@
         if (enableWatermark && watermarkText) {
           const watermarkImage = await generateWatermarkImage(outDoc, watermarkText);
           pages.forEach(page => {
-            const { width, height } = page.getSize();
-            const wmSize = Math.min(width, height) * 0.82;
-            const posX = (width - wmSize) / 2;
-            const posY = (height - wmSize) / 2;
+            const frame = visualFrame(page);
+            const wmSize = Math.min(frame.width, frame.height) * 0.82;
+            const pos = frame.map((frame.width - wmSize) / 2, (frame.height - wmSize) / 2);
             page.drawImage(watermarkImage, {
-              x: posX,
-              y: posY,
+              x: pos.x,
+              y: pos.y,
               width: wmSize,
               height: wmSize,
+              rotate: frame.rotate
             });
           });
         }
 
         if (addPageNumbers) {
+          const fontSize = 9;
           pages.forEach((page, idx) => {
-            const { width } = page.getSize();
+            const frame = visualFrame(page);
             const text = `${idx + 1} / ${totalPages}`;
+            const textWidth = font.widthOfTextAtSize(text, fontSize);
+            const pos = frame.map((frame.width - textWidth) / 2, 20);
             page.drawText(text, {
-              x: width / 2 - 15,
-              y: 20,
-              size: 9,
+              x: pos.x,
+              y: pos.y,
+              size: fontSize,
               font: font,
               color: rgb(0.4, 0.4, 0.4),
+              rotate: frame.rotate
             });
           });
         }
@@ -1240,6 +1488,20 @@
           outDoc.setKeywords([]);
           outDoc.setProducer('KiriPDF Local Atelier');
           outDoc.setCreator('KiriPDF Local Atelier');
+        } else {
+          // 1件目のページの元PDFから文書情報を引き継ぐ
+          const firstDoc = loadedDocs.get(parsePageKey(state.selectionOrder[0]).fileId);
+          const title = firstDoc.getTitle();
+          const author = firstDoc.getAuthor();
+          const subject = firstDoc.getSubject();
+          const keywords = firstDoc.getKeywords();
+          const creator = firstDoc.getCreator();
+          if (title) outDoc.setTitle(title);
+          if (author) outDoc.setAuthor(author);
+          if (subject) outDoc.setSubject(subject);
+          if (keywords) outDoc.setKeywords([keywords]);
+          if (creator) outDoc.setCreator(creator);
+          outDoc.setProducer('KiriPDF Local Atelier');
         }
 
         let pdfBytes = await outDoc.save();
@@ -1266,7 +1528,7 @@
 
       } catch (err) {
         console.error('Export error:', err);
-        showToast('出力中にエラーが発生しました', true);
+        showToast(err.name === 'RestrictedPdfError' ? err.message : '出力中にエラーが発生しました', true);
       } finally {
         hideProcessing();
       }
@@ -1281,7 +1543,9 @@
       const isCryptoSubtleAvailable = typeof window !== 'undefined' && window.crypto && !!window.crypto.subtle;
       const algorithm = isCryptoSubtleAvailable ? 'AES-256' : 'RC4';
 
+      // 権限変更用（オーナー）パスワードは閲覧用と別の乱数にし、閲覧者が編集制限を外せないようにする
       return await encryptor.encryptPDF(new Uint8Array(pdfBytes), password, {
+        ownerPassword: randomPassword(32),
         algorithm: algorithm,
         allowPrinting: true,
         allowModifying: false,
@@ -1297,25 +1561,26 @@
         return;
       }
 
+      const restricted = state.files.filter(f => f.isRestricted);
+      if (restricted.length > 0) {
+        showToast(`"${restricted.map(f => f.name).join('", "')}" は編集制限付きのため分割できません。一覧から削除してください`, true);
+        return;
+      }
+
       showProcessing('全ページ分割中...', `全 ${totalPages} ページを個別ZIP化しています`);
 
       try {
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument, degrees } = PDFLib;
         const zip = new JSZip();
 
         for (const file of state.files) {
           const folder = state.files.length > 1 ? zip.folder(file.name.replace(/\.[^/.]+$/, "")) : zip;
-          let bytes = file.rawBytes;
-          if (!bytes || bytes.byteLength === 0) {
-            const freshBuffer = await file.fileRef.arrayBuffer();
-            file.rawBytes = new Uint8Array(freshBuffer.slice(0));
-            bytes = file.rawBytes;
-          }
-          const srcDoc = await PDFDocument.load(bytes.slice(0));
+          const srcDoc = await loadSourceDoc(file);
 
           for (let p = 0; p < file.pageCount; p++) {
             const singleDoc = await PDFDocument.create();
             const [copied] = await singleDoc.copyPages(srcDoc, [p]);
+            copied.setRotation(degrees(normalizeRotation(copied.getRotation().angle + file.pages[p].rotation)));
             singleDoc.addPage(copied);
             const singleBytes = await singleDoc.save();
             const pNum = String(p + 1).padStart(3, '0');
@@ -1328,7 +1593,7 @@
         showToast('全ページのZIP分割が完了しました');
       } catch (err) {
         console.error('Split zip error:', err);
-        showToast('分割処理中にエラーが発生しました', true);
+        showToast(err.name === 'RestrictedPdfError' ? err.message : '分割処理中にエラーが発生しました', true);
       } finally {
         hideProcessing();
       }
@@ -1340,23 +1605,26 @@
         return;
       }
 
+      const restricted = state.files.filter(f => f.isRestricted);
+      if (restricted.length > 0) {
+        showToast(`"${restricted.map(f => f.name).join('", "')}" は編集制限付きのため結合できません。一覧から削除してください`, true);
+        return;
+      }
+
       showProcessing('全PDFを結合中...', `${state.files.length} つのファイルを統合しています`);
 
       try {
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument, degrees } = PDFLib;
         const mergedDoc = await PDFDocument.create();
 
         for (const file of state.files) {
-          let bytes = file.rawBytes;
-          if (!bytes || bytes.byteLength === 0) {
-            const freshBuffer = await file.fileRef.arrayBuffer();
-            file.rawBytes = new Uint8Array(freshBuffer.slice(0));
-            bytes = file.rawBytes;
-          }
-          const srcDoc = await PDFDocument.load(bytes.slice(0));
+          const srcDoc = await loadSourceDoc(file);
           const pageIndices = Array.from({ length: file.pageCount }, (_, i) => i);
           const copiedPages = await mergedDoc.copyPages(srcDoc, pageIndices);
-          copiedPages.forEach(p => mergedDoc.addPage(p));
+          copiedPages.forEach((p, i) => {
+            p.setRotation(degrees(normalizeRotation(p.getRotation().angle + file.pages[i].rotation)));
+            mergedDoc.addPage(p);
+          });
         }
 
         const mergedBytes = await mergedDoc.save();
@@ -1364,7 +1632,7 @@
         showToast('すべてのPDFを1つに結合しました');
       } catch (err) {
         console.error('Merge error:', err);
-        showToast('結合処理中にエラーが発生しました', true);
+        showToast(err.name === 'RestrictedPdfError' ? err.message : '結合処理中にエラーが発生しました', true);
       } finally {
         hideProcessing();
       }

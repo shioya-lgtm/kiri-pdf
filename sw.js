@@ -1,6 +1,6 @@
 // KiriPDF Service Worker — アプリ本体を端末にキャッシュしてオフライン動作させる。
 // 同梱ファイルを変更したら CACHE_VERSION を上げること（上げないと利用者側が旧版のまま）。
-const CACHE_VERSION = 'kiripdf-v2';
+const CACHE_VERSION = 'kiripdf-v3';
 
 const APP_SHELL = [
   './',
@@ -28,11 +28,14 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    await cache.addAll(APP_SHELL);
+    // 日本語表示用の CMap（vendor/cmaps/index.json に一覧）
+    const cmapNames = await (await fetch('./vendor/cmaps/index.json')).json();
+    await cache.addAll(cmapNames.map(name => './vendor/cmaps/' + name));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
